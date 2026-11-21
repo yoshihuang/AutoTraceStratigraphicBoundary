@@ -49,6 +49,7 @@ class AutoTraceStratBoundaryPlugin(object):
         self.menu = None
         self.toolbar = None
         self.actions = []
+        self._dialog = None
 
     # ------------------------------------------------------------------ lifecycle
     def initProcessing(self):  # noqa: N802
@@ -123,8 +124,6 @@ class AutoTraceStratBoundaryPlugin(object):
 
     # ------------------------------------------------------------------ actions
     def run_trace(self):
-        import processing
-
         params = {}
         pts = _find_layer(GEOM_POINT, ["Stratigraphic_Boundary"], ("dip", "unit_code_u"))
         if pts is None:
@@ -140,11 +139,26 @@ class AutoTraceStratBoundaryPlugin(object):
             params["DEM"] = dem.id()
         if faults is not None:
             params["FAULTS"] = faults.id()
-        processing.execAlgorithmDialog("%s:tracestratboundary" % PROVIDER_ID, params)
+        self._open_algorithm_dialog("%s:tracestratboundary" % PROVIDER_ID, params)
 
-    def run_geology(self):
+    def _open_algorithm_dialog(self, alg_id, params):
+        """Open a Processing dialog non-modally, like the Processing Toolbox does.
+
+        processing.execAlgorithmDialog() is not used: in QGIS 4 the dialog deletes
+        itself on close and execAlgorithmDialog() then calls results() on the
+        deleted widget ("wrapped C/C++ object ... has been deleted").
+        """
         import processing
 
+        dlg = processing.createAlgorithmDialog(alg_id, params)
+        if dlg is None:
+            return
+        self._dialog = dlg  # keep a Python reference while it is open
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
+
+    def run_geology(self):
         params = {}
         bnd = _find_layer(GEOM_LINE, ["predicted", "boundary", "預判", "预判", "予測"], ("unit_u", "unit_d"))
         faults = _find_layer(GEOM_LINE, ["faults", "fault", "斷層", "断层"])
@@ -164,7 +178,7 @@ class AutoTraceStratBoundaryPlugin(object):
             params["EXTENT"] = "%f,%f,%f,%f [%s]" % (
                 e.xMinimum(), e.xMaximum(), e.yMinimum(), e.yMaximum(), dem.crs().authid()
             )
-        processing.execAlgorithmDialog("%s:buildgeology" % PROVIDER_ID, params)
+        self._open_algorithm_dialog("%s:buildgeology" % PROVIDER_ID, params)
 
     def download_sample(self):
         from .sample_data import download_sample_dialog

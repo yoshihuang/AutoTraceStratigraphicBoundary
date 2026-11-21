@@ -28,13 +28,21 @@ from autotrace_strat_boundary.sample_data import extract_sample
 tmp = tempfile.mkdtemp()
 proj = extract_sample(tmp); print("project:", os.path.relpath(proj, tmp))
 print("open:", iface.addProject(proj), {l.name(): l.isValid() for l in QgsProject.instance().mapLayers().values()})
-# auto-detected params
-import processing
-captured = {}
-processing.execAlgorithmDialog = lambda alg_id, params: captured.update({alg_id: params})
-plugin.run_trace(); plugin.run_geology()
+# real Processing dialogs: open, read pre-filled values, close (regression: QGIS 4 deleted-widget crash)
+import processing.tools.general as pg
+from qgis.gui import QgsMessageBar, QgsMapCanvas
+iface.messageBar = lambda bar=QgsMessageBar(): bar
+iface.mapCanvas = lambda c=QgsMapCanvas(): c
+pg.iface = iface
 names = {l.id(): l.name() for l in QgsProject.instance().mapLayers().values()}
-for k, v in captured.items(): print(k, {p: names.get(x, x) for p, x in v.items()})
+for run in (plugin.run_trace, plugin.run_geology):
+    run()
+    dlg = plugin._dialog
+    vals = dlg.mainWidget().createProcessingParameters()
+    print(dlg.windowTitle(), "visible:", dlg.isVisible(),
+          {k: (v.name() if hasattr(v, "name") else names.get(v, v)) for k, v in vals.items() if k in ("POINTS","DEM","FAULTS","UNIT_POINTS","TEMPLATE")})
+    dlg.close(); app.processEvents()
+    print("closed without error")
 # help dialogs
 from autotrace_strat_boundary.help_dialog import HelpDialog
 from qgis.PyQt.QtWidgets import QTextBrowser
