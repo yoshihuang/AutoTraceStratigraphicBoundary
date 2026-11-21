@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>地層邊界自動追蹤－繪製原理與操作說明</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<h1>地層邊界自動追蹤 AutoTrace Stratigraphic Boundary</h1>
+<p class="lead">依據露頭點位的位態（傾角／傾向）與數值地形（DEM），以<b>構造等高線原理</b>預判地層邊界的露頭線，
+再由使用者編修後的邊界線與斷層產生地質圖。</p>
+
+<p class="langs"><a href="../en/index.html">English</a> · 繁體中文 · <a href="../zh_CN/index.html">简体中文</a> · <a href="../ja/index.html">日本語</a></p>
+
+<h2>目錄</h2>
+<ol>
+<li><a href="#workflow">作業流程</a></li>
+<li><a href="#principle">地層邊界預判線繪製原理</a></li>
+<li><a href="#geology">地質圖產生原理</a></li>
+<li><a href="#data">資料準備</a></li>
+<li><a href="#steps">操作步驟（以範例專案示範）</a></li>
+<li><a href="#params">參數說明</a></li>
+<li><a href="#fields">輸出欄位</a></li>
+<li><a href="#tips">注意事項與限制</a></li>
+</ol>
+
+<h2 id="workflow">1. 作業流程</h2>
+<table class="flow"><tr>
+<td><b>①</b><br>露頭點位<br>＋DEM＋斷層</td><td>→</td>
+<td><b>②</b><br><i>繪製地層邊界預判線</i><br>（暫存圖層）</td><td>→</td>
+<td><b>③</b><br>於 QGIS 中<br>編修預判線</td><td>→</td>
+<td><b>④</b><br><i>產生地質圖</i><br>（geology 多邊形）</td>
+</tr></table>
+<p>兩項工具位於選單 <b>外掛 ▸ 地層邊界自動追蹤</b>、工具列，以及處理工具箱（群組「地質圖繪製」），
+因此也可以批次執行或放入圖形化模型中。</p>
+
+<h2 id="principle">2. 地層邊界預判線繪製原理</h2>
+
+<h3>2.1 構造等高線法</h3>
+<p>在短距離內，地層界面可視為一個<b>平面</b>。露頭點 P<sub>0</sub>(x<sub>0</sub>, y<sub>0</sub>) 位於地表，
+其高程 z<sub>0</sub> 由 DEM 讀取；若傾角為 <i>δ</i>、傾向為 <i>α</i>，則通過該點的地層面為</p>
+<p class="eq">z<sub>s</sub>(x, y) = z<sub>0</sub> − tan δ · [ (x − x<sub>0</sub>) sin α + (y − y<sub>0</sub>) cos α ]</p>
+<p>地層面的<b>構造等高線</b>（層面上的等高線）平行於走向，等高距 <i>h</i> 時的水平間距為 <i>h</i> / tan δ。
+構造等高線與<b>同高程</b>的地形等高線相交之處，就是地層界面出露於地表的位置；把這些交點連起來即為露頭線。</p>
+<p>本程式不只在等高線高程上求交點，而是在每個 DEM 網格計算地表與層面的高差</p>
+<p class="eq">F(x, y) = DEM(x, y) − z<sub>s</sub>(x, y)</p>
+<p>並追蹤 <b>F = 0</b> 的連續線，由點位往兩側延伸（使用 GDAL 等值線產生器，於網格間線性內插）。</p>
+<ul>
+<li>F &gt; 0：地表高於層面，地表出露<b>上層（較新）</b>地層。</li>
+<li>F &lt; 0：地表低於層面，地表出露<b>下層（較老）</b>地層。</li>
+</ul>
+<div class="fig"><img src="../img/fig1_structure_contours.png" width="460"><br>
+<span class="cap">圖 1－範例點 11（O5/O4，44°/241°）。棕色：地形等高線；藍色虛線：層面構造等高線；
+紅點：同高程交點；紅線：預判露頭線（F = 0）。</span></div>
+<div class="fig"><img src="../img/fig2_profile.png" width="560"><br>
+<span class="cap">圖 2－通過同一點、沿傾向的剖面。虛線：層面；橘色：上層（地表高於層面）；藍色：下層。</span></div>
+<p>因此預判線會隨地形在<b>溪谷處彎入、山脊處繞出</b>（V 字法則）：傾角愈緩，線形愈貼近等高線；
+垂直地層則為直線。</p>
+
+<h3>2.2 同一邊界點位的端點相接</h3>
+<p>具有<b>相同上層與下層代號</b>、且位於<b>同一斷塊</b>的點位屬於同一條地層邊界。程式以反距離加權方式混合各點的層面：</p>
+<p class="eq">z(x, y) = Σ w<sub>i</sub> z<sub>i</sub>(x, y) / Σ w<sub>i</sub>，  w<sub>i</sub> = 1 / d<sub>i</sub><sup>p</sup></p>
+<p>z<sub>i</sub> 為第 <i>i</i> 點的層面，d<sub>i</sub> 為與該點的距離，<i>p</i> 為「混合權重次方」（預設 4）。
+此曲面通過每一個點位，且在點位處保有該點的位態；點位之間位態逐漸變化，因此可以繞過褶皺樞紐或鼻部。
+所得的 F = 0 線會一次通過所有點位，使同一邊界的點位以端點相接。若同一邊界仍分成數段（例如 DEM 無資料處），
+自由端點距離小於「同一邊界線段端點相接的最大間距」者，會以直線段相接。</p>
+<p>另一種方法「各點位獨立（單一層面）」只以各點本身的層面追蹤，適合用來檢查個別位態資料。</p>
+<div class="fig"><img src="../img/fig3_traced.png" width="500"><br>
+<span class="cap">圖 3－範例資料的預判線（未編修）。顏色＝上層代號，黑線＝斷層 F1，圓點＝露頭點。
+點位稀疏處（如西側 O3/O2）可能分成多段，就是需要編修的地方。</span></div>
+
+<h3>2.3 斷層</h3>
+<p>斷層與 DEM 圖框把圖幅切成數個<b>斷塊</b>。點位只在同一斷塊內混合，預判線也只保留在所屬斷塊內，
+所以<b>遇到斷層即停止，且端點恰好落在斷層線上</b>。未完整切穿斷塊、在圖幅內尖滅的斷層，
+仍會在交會處切斷預判線。</p>
+
+<h3>2.4 上層位於哪一側？</h3>
+<p>程式在每條線的左右兩側檢查 F 的正負，並在欄位 <code>upper_side</code> 記錄 <b>L</b> 或 <b>R</b>：
+由線的起點往終點看，上層位於左側或右側。倒轉層（<code>overturned = 1</code>）則左右對調。
+有了這個欄位，產生地質圖時不需其他資料即可判定多邊形的地層。</p>
+<p class="note">編修時若<b>反轉線的方向</b>，請同時對調 L／R；若新增線段，請填入 <code>unit_u</code>、<code>unit_d</code>，
+已知時也填 <code>upper_side</code>。</p>
+
+<h2 id="geology">3. 地質圖產生原理</h2>
+<ol>
+<li><b>多邊形化</b>：地層邊界線、斷層與圖框經節點化後組成多邊形。線的端點距其他線段在<i>接合容許距離</i>內者會自動接上，
+避免小缺口造成地層區相連。</li>
+<li><b>依左右側判定</b>：每段邊界線投票，<code>upper_side</code> 側的多邊形得 <code>unit_u</code>，
+另一側得 <code>unit_d</code>（以線段長度加權）。與斷層重合的線段不計。</li>
+<li><b>地層代號點位</b>（選填，如含 <code>unit_code</code> 的 <i>bedding</i>）為所在的多邊形投票，且判定優先。</li>
+<li><b>跨線推定</b>：沒有 <code>upper_side</code> 的線，由已知的一側推定另一側
+（U/D 邊界一側為 U，另一側即為 D）。推定不會跨越斷層。</li>
+<li>面積很小的未判定碎片併入共用邊最長的鄰區；可選擇依地層合併多邊形。</li>
+<li><code>unit_name, strat_order, series, thick_m, kind</code> 等屬性與圖例樣式由<i>範本</i>圖層（如既有 geology）複製；
+無範本時，<code>strat_order</code> 由上下層關係排序（1＝最老）。</li>
+</ol>
+<div class="fig"><img src="../img/fig4_geology.png" width="500"><br>
+<span class="cap">圖 4－由完整的地層邊界線、斷層 F1 及範例 bedding 點位產生的地質圖。</span></div>
+<p><b>品質檢核</b>：欄位 <code>qa</code> 為 <i>ok</i>、<i>conflict</i>（周圍邊界判定互相矛盾，通常是缺口或交叉）、
+<i>propagated</i>（跨線推定）、<i>unassigned</i>（未判定）。第二個輸出「未閉合端點」標示沒有接到任何線的端點，
+請補接後重新執行。</p>
+
+<h2 id="data">4. 資料準備</h2>
+<table class="grid">
+<tr><th>圖層</th><th>類型</th><th>欄位（預設名稱）</th></tr>
+<tr><td>地層邊界露頭點位</td><td>點</td><td><code>dip</code> 傾角（0–90°）、<code>dip_dir</code> 傾向（0–360°；或依右手定則的走向）、
+<code>unit_code_u</code> 上層代號、<code>unit_code_d</code> 下層代號、<code>overturned</code> 倒轉（0/1，選填）</td></tr>
+<tr><td>DEM</td><td>網格（GDAL 檔案）</td><td>以公尺為單位的投影座標系統；解析度決定線的細緻程度</td></tr>
+<tr><td>斷層</td><td>線</td><td>欄位不拘；須延伸到圖框或其他斷層，才能切分斷塊</td></tr>
+<tr><td>地層代號點位（選填）</td><td>點</td><td><code>unit_code</code></td></tr>
+<tr><td>範本（選填）</td><td>面</td><td><code>unit_code, unit_name, strat_order, series, thick_m, kind</code></td></tr>
+</table>
+<p>各圖層可使用不同座標系統，繪製預判線時轉換至 DEM 座標系統，產生地質圖時轉換至邊界線的座標系統。</p>
+
+<h2 id="steps">5. 操作步驟（以範例專案示範）</h2>
+<ol>
+<li><b>外掛 ▸ 地層邊界自動追蹤 ▸ 下載範例專案與資料…</b>：選擇存放資料夾後，會存入專案 <i>C19.qgz</i>
+（斜移斷層錯開傾沒褶皺，EPSG:3826）以及 <i>c19_….gpkg</i>、<i>DEM.tif</i>，並可立即開啟。</li>
+<li><b>繪製地層邊界預判線…</b>：對話框已自動帶入 <i>Stratigraphic_Boundary</i>、<i>DEM</i> 與 <i>faults</i>，
+按 <b>執行</b>。完成後加入暫存圖層「地層邊界預判線」，依上層代號著色並標示「上層/下層」。</li>
+<li><b>編修</b>：開啟該圖層的編輯模式，使用節點工具、重塑、分割或新增線段；將 <i>faults</i> 設為鎖點對象，
+讓端點落在斷層上。刪除錯誤分支、接合應相連的線段。暫存圖層在關閉 QGIS 後會消失，
+請另存為 GeoPackage（右鍵 ▸ <i>轉為永久圖層</i>）。</li>
+<li><b>產生地質圖…</b>：選擇編修後的邊界線與斷層；範例中圖幅範圍（DEM）、<i>bedding</i>（地層代號點位）與
+<i>geology</i>（範本）已自動帶入，按 <b>執行</b>。</li>
+<li>檢查 <code>qa</code> 欄位與「未閉合端點」圖層，修正線段後可再次執行步驟 4。</li>
+</ol>
+
+<h2 id="params">6. 參數說明</h2>
+<h3>繪製地層邊界預判線</h3>
+<table class="grid">
+<tr><th>參數</th><th>說明</th></tr>
+<tr><td>方位欄位內容</td><td>傾向，或走向（右手定則：傾向＝走向＋90°）。</td></tr>
+<tr><td>方法</td><td>「同一邊界的點位相接」（預設）或「各點位獨立」。</td></tr>
+<tr><td>同一邊界線段端點相接的最大間距</td><td>同一邊界的自由端點在此距離（圖面單位）內以直線相接；0＝不相接。位於斷層或圖框上的端點不相接。</td></tr>
+<tr><td>混合權重次方（進階）</td><td>值愈大，各點本身的層面在點位周圍保持得愈遠；值愈小，曲面愈平滑、愈接近平均。建議 3–6。</td></tr>
+<tr><td>由點位最大延伸距離（進階）</td><td>限制預判線距點位的距離（0＝整個斷塊）。</td></tr>
+<tr><td>保留未通過露頭點的分支（進階）</td><td>一併保留同一曲面與地表的其他交線（例如溪谷對岸的同一界面）。</td></tr>
+<tr><td>最短線長（進階）</td><td>刪除過短的碎線。</td></tr>
+</table>
+<h3>產生地質圖</h3>
+<table class="grid">
+<tr><th>參數</th><th>說明</th></tr>
+<tr><td>上層／下層代號欄位、上層所在側欄位</td><td>預設 <code>unit_u</code>、<code>unit_d</code>、<code>upper_side</code>（由預判線工具寫入）。</td></tr>
+<tr><td>圖幅範圍</td><td>地質圖的圖框；空白時使用線段的範圍。</td></tr>
+<tr><td>線段端點接合容許距離</td><td>端點距其他線段小於此值即接合（圖面單位，預設 5）。</td></tr>
+<tr><td>併入鄰區的未判定碎片面積上限（進階）</td><td>小於此面積的未判定多邊形併入鄰區。</td></tr>
+<tr><td>依地層合併多邊形</td><td>每個地層一筆（多重）多邊形，與範例 <i>geology</i> 相同。</td></tr>
+</table>
+
+<h2 id="fields">7. 輸出欄位</h2>
+<table class="grid">
+<tr><th>圖層</th><th>欄位</th><th>內容</th></tr>
+<tr><td rowspan="8">地層邊界預判線</td><td>bnd_id</td><td>線編號</td></tr>
+<tr><td>unit_u / unit_d</td><td>上層／下層代號</td></tr>
+<tr><td>upper_side</td><td>L／R：沿線方向上層所在側</td></tr>
+<tr><td>block_id</td><td>斷塊編號</td></tr>
+<tr><td>n_pts</td><td>線通過的露頭點數</td></tr>
+<tr><td>pt_ids</td><td>通過點位的編號</td></tr>
+<tr><td>method</td><td>blend（混合）／individual（獨立）</td></tr>
+<tr><td>length_m</td><td>長度</td></tr>
+<tr><td rowspan="3">地質圖 geology</td><td>unit_code … kind</td><td>與範例 <i>geology</i> 圖層相同的欄位結構</td></tr>
+<tr><td>qa</td><td>ok／conflict／propagated／unassigned</td></tr>
+<tr><td>area_m2</td><td>面積</td></tr>
+</table>
+
+<h2 id="tips">8. 注意事項與限制</h2>
+<ul>
+<li>預判以層面為平面（或平滑變化）為前提；緊密褶皺、厚度變化及不整合需要更多觀測點或人工編修。</li>
+<li>結果受 DEM 與位態精度影響；緩坡上 20° 傾角若有 5° 誤差，線的位置就可能相差很遠。請以野外紀錄與航照檢核。</li>
+<li>斷層須延伸到圖框或其他斷層才能分隔斷塊，否則只會切斷預判線。</li>
+<li>請使用以公尺為單位的投影座標系統；地理座標的 DEM 會被拒絕。</li>
+<li>大型 DEM 只讀取各斷塊（或最大延伸距離）範圍內的資料。</li>
+</ul>
+<p class="foot">授權：GNU GPL v2 或更新版本。</p>
+</body>
+</html>

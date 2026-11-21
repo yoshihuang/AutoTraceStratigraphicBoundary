@@ -1,0 +1,27 @@
+[general]
+name=AutoTrace Stratigraphic Boundary
+qgisMinimumVersion=3.22
+qgisMaximumVersion=4.99
+supportsQt6=True
+description=Predicts stratigraphic boundary outcrop lines from dip/dip-direction outcrop points and a DEM (structure-contour method), stops them at faults, and builds a geological map from the edited lines. 依構造等高線原理由露頭位態與 DEM 預判地層邊界線並產生地質圖。
+about=For each outcrop point of a stratigraphic boundary (dip, dip direction, upper and lower unit codes) the boundary plane is intersected with the DEM, and the outcrop line is followed to both sides of the point.
+    Points of the same boundary in the same fault block are joined end to end through an inverse-distance blend of their planes, and lines stop on faults.
+    A second tool polygonizes the edited boundary lines with the faults and assigns units from the side of each boundary, producing a geology layer.
+    Includes a downloadable sample project (oblique-slip fault displacing a plunging fold) and an illustrated guide to the principle and operation.
+    User interface and guide: English, 繁體中文, 简体中文, 日本語 (follows the QGIS locale, switchable in the plugin menu).
+    Requires only QGIS (GDAL and NumPy shipped with QGIS).
+version=0.1.0
+author=yoshihuang
+email=yoshi.hml@gmail.com
+changelog=
+    0.1.0 First release: boundary tracing, geology builder, sample project, multilingual help (en, zh_TW, zh_CN, ja).
+tags=geology,stratigraphy,structure contour,dip,strike,DEM,fault,geological map,outcrop,mapping
+homepage=https://github.com/yoshihuang/AutoTraceStratigraphicBoundary
+repository=https://github.com/yoshihuang/AutoTraceStratigraphicBoundary
+tracker=https://github.com/yoshihuang/AutoTraceStratigraphicBoundary/issues
+category=Analysis
+icon=icons/icon.png
+experimental=True
+deprecated=False
+hasProcessingProvider=yes
+server=False

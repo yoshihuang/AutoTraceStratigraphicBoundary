@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AutoTrace Stratigraphic Boundary – Principle and user guide</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<h1>AutoTrace Stratigraphic Boundary</h1>
+<p class="lead">Predicts where stratigraphic boundaries crop out from outcrop observations (dip / dip direction) and a DEM,
+using the <b>structure-contour method</b>, then builds a geological map from your edited lines and the faults.</p>
+
+<p class="langs">English · <a href="../zh_TW/index.html">繁體中文</a> · <a href="../zh_CN/index.html">简体中文</a> · <a href="../ja/index.html">日本語</a></p>
+
+<h2>Contents</h2>
+<ol>
+<li><a href="#workflow">Workflow</a></li>
+<li><a href="#principle">How predicted boundary lines are drawn</a></li>
+<li><a href="#geology">How the geological map is built</a></li>
+<li><a href="#data">Preparing your data</a></li>
+<li><a href="#steps">Step-by-step with the sample project</a></li>
+<li><a href="#params">Parameters</a></li>
+<li><a href="#fields">Output fields</a></li>
+<li><a href="#tips">Tips and limitations</a></li>
+</ol>
+
+<h2 id="workflow">1. Workflow</h2>
+<table class="flow"><tr>
+<td><b>①</b><br>Outcrop points<br>+ DEM + faults</td><td>→</td>
+<td><b>②</b><br><i>Trace predicted boundary lines</i><br>(temporary layer)</td><td>→</td>
+<td><b>③</b><br>Edit the lines<br>in QGIS</td><td>→</td>
+<td><b>④</b><br><i>Build geological map</i><br>(geology polygons)</td>
+</tr></table>
+<p>Both tools are in the menu <b>Plugins ▸ AutoTrace Stratigraphic Boundary</b>, on the toolbar, and in the
+Processing Toolbox (group <i>Geological mapping</i>), so they can be used in batch mode and in models.</p>
+
+<h2 id="principle">2. How predicted boundary lines are drawn</h2>
+
+<h3>2.1 The structure-contour method</h3>
+<p>Over a short distance a bedding boundary can be treated as a <b>plane</b>. An outcrop point
+P<sub>0</sub>(x<sub>0</sub>, y<sub>0</sub>) with dip <i>δ</i> and dip direction <i>α</i> lies on the ground, so its
+elevation z<sub>0</sub> is read from the DEM. The plane through it is</p>
+<p class="eq">z<sub>s</sub>(x, y) = z<sub>0</sub> − tan δ · [ (x − x<sub>0</sub>) sin α + (y − y<sub>0</sub>) cos α ]</p>
+<p>Its <b>structure contours</b> (lines of equal elevation on the plane) run parallel to the strike, and their spacing
+is <i>h</i> / tan δ for a contour interval <i>h</i>. Wherever a structure contour crosses a topographic contour of the
+<b>same elevation</b>, the boundary crops out. Joining those crossings gives the outcrop trace.</p>
+<p>The plugin does this continuously, not just at contour levels: it computes the difference between the ground and the plane on every DEM cell,</p>
+<p class="eq">F(x, y) = DEM(x, y) − z<sub>s</sub>(x, y)</p>
+<p>and follows the line <b>F = 0</b> to both sides of the point (GDAL contour generator, linear interpolation between cells).</p>
+<ul>
+<li>F &gt; 0: the ground is above the boundary, so the <b>upper (younger)</b> unit crops out.</li>
+<li>F &lt; 0: the ground is below the boundary, so the <b>lower (older)</b> unit crops out.</li>
+</ul>
+<div class="fig"><img src="../img/fig1_structure_contours.png" width="460"><br>
+<span class="cap">Fig. 1 – Sample point 11 (O5/O4, 44°/241°). Brown: topographic contours. Blue dashed: structure contours
+of the bedding plane. Red dots: crossings at equal elevation. Red line: predicted outcrop line (F = 0).</span></div>
+<div class="fig"><img src="../img/fig2_profile.png" width="560"><br>
+<span class="cap">Fig. 2 – Profile along the dip direction through the same point. Dashed: bedding plane; orange: upper unit
+(ground above the plane); blue: lower unit.</span></div>
+<p>So the line bends <b>up valleys and around ridges</b> as the topography requires (the "rule of Vs"). A gentle dip makes the line
+follow the contours closely. A vertical bed gives a straight line.</p>
+
+<h3>2.2 Joining points of the same boundary (end to end)</h3>
+<p>Points that have the <b>same upper and lower unit codes</b> and lie in the <b>same fault block</b> belong to the same
+boundary. Their planes are combined into one smooth surface by inverse-distance-weighted blending of the planes:</p>
+<p class="eq">z(x, y) = Σ w<sub>i</sub> z<sub>i</sub>(x, y) / Σ w<sub>i</sub>,  w<sub>i</sub> = 1 / d<sub>i</sub><sup>p</sup></p>
+<p>where z<sub>i</sub> is the plane of point <i>i</i>, d<sub>i</sub> the distance to it and <i>p</i> the
+<i>blending power</i> (default 4). The surface passes exactly through every point and keeps that point's own dip and dip direction
+there. Between points the attitude changes gradually, so the line can bend around a fold hinge or nose. One F = 0
+line then runs through all the points and joins them end to end. Pieces of the same boundary that are still
+separated (for example by DEM nodata) are joined if their loose ends are closer than <i>Join loose ends … closer than</i>.</p>
+<p>The alternative method <i>Each point on its own plane</i> traces every point with its own plane only. It is
+useful for checking single observations.</p>
+<div class="fig"><img src="../img/fig3_traced.png" width="500"><br>
+<span class="cap">Fig. 3 – Predicted lines for the sample (no editing). Colour = upper unit, black = fault F1, dots =
+outcrop points. Where points are sparse (e.g. O3/O2 in the west), the line can split into branches. Those are the
+places to edit.</span></div>
+
+<h3>2.3 Faults</h3>
+<p>The faults and the DEM frame split the map into <b>fault blocks</b>. Points are combined only within a block, and the
+predicted line is clipped to its block, so it <b>stops at the fault and ends exactly on the fault line</b>. A
+fault that ends inside the map (does not cut a whole block) still cuts the lines that cross it.</p>
+
+<h3>2.4 Which side is the upper unit?</h3>
+<p>For every line the sign of F is tested just to the left and right of the line. The field <code>upper_side</code>
+stores <b>L</b> or <b>R</b>: the side, looking along the line from its first to its last vertex, on which the upper unit
+crops out. Overturned points (<code>overturned = 1</code>) swap the sides. This field lets the geology tool label the
+polygons without any other information.</p>
+<p class="note">If you <b>reverse the direction</b> of a line while editing, swap L/R as well. If you draw a new line,
+fill in <code>unit_u</code>, <code>unit_d</code> and, if you know it, <code>upper_side</code>.</p>
+
+<h2 id="geology">3. How the geological map is built</h2>
+<ol>
+<li><b>Polygonize</b> – boundary lines, faults and the map frame are noded and turned into polygons. A line end that
+stops within the <i>snapping tolerance</i> of another line is joined to it, so small gaps do not leak.</li>
+<li><b>Label by sides</b> – every boundary segment votes: the polygon on its <code>upper_side</code> gets
+<code>unit_u</code>, the polygon on the other side gets <code>unit_d</code> (votes are weighted by segment length).
+Segments lying on a fault are ignored.</li>
+<li><b>Unit sample points</b> (optional, e.g. <i>bedding</i> with <code>unit_code</code>) vote for the polygon that
+contains them and take priority.</li>
+<li><b>Propagation</b> – lines without <code>upper_side</code> pass a known unit across the line to the other side
+(U on one side of a U/D line ⇒ D on the other side). Propagation does not cross faults.</li>
+<li>Small unassigned slivers are merged into the neighbour with the longest shared edge. Polygons are optionally
+dissolved per unit.</li>
+<li>Attributes <code>unit_name, strat_order, series, thick_m, kind</code> and the symbology are copied from the
+<i>template</i> layer (e.g. an existing geology layer). Without a template, <code>strat_order</code> is derived from
+the upper/lower pairs (1 = oldest).</li>
+</ol>
+<div class="fig"><img src="../img/fig4_geology.png" width="500"><br>
+<span class="cap">Fig. 4 – Geological map built from completed boundary lines, fault F1 and the bedding points of the sample.</span></div>
+<p><b>Quality check</b> – field <code>qa</code>: <i>ok</i>, <i>conflict</i> (the boundaries around the polygon
+disagree, usually a gap or a crossing), <i>propagated</i> (inferred across a line), <i>unassigned</i>. The second output
+<i>Unclosed boundary ends</i> marks line ends that touch nothing. Close them and run the tool again.</p>
+
+<h2 id="data">4. Preparing your data</h2>
+<table class="grid">
+<tr><th>Layer</th><th>Type</th><th>Fields (defaults)</th></tr>
+<tr><td>Boundary outcrop points</td><td>Point</td><td><code>dip</code> (0–90°), <code>dip_dir</code> (0–360°, or strike with the right-hand
+rule), <code>unit_code_u</code> (upper unit), <code>unit_code_d</code> (lower unit), <code>overturned</code> (0/1, optional)</td></tr>
+<tr><td>DEM</td><td>Raster (GDAL file)</td><td>Projected CRS in metres. The resolution controls the line detail.</td></tr>
+<tr><td>Faults</td><td>Line</td><td>Any fields. They should reach the map frame or another fault to split blocks.</td></tr>
+<tr><td>Unit sample points (optional)</td><td>Point</td><td><code>unit_code</code></td></tr>
+<tr><td>Template (optional)</td><td>Polygon</td><td><code>unit_code, unit_name, strat_order, series, thick_m, kind</code></td></tr>
+</table>
+<p>Layers may use different CRSs; they are reprojected to the DEM CRS (tracing) or to the boundary-line CRS (geology).</p>
+
+<h2 id="steps">5. Step-by-step with the sample project</h2>
+<ol>
+<li><b>Plugins ▸ AutoTrace Stratigraphic Boundary ▸ Download sample project and data…</b> – choose a folder. The
+project <i>C19.qgz</i> (oblique-slip fault displacing a plunging fold, EPSG:3826) with
+<i>c19_….gpkg</i> and <i>DEM.tif</i> is saved there and can be opened at once.</li>
+<li><b>Trace predicted boundary lines…</b> – the dialog is pre-filled with <i>Stratigraphic_Boundary</i>,
+<i>DEM</i> and <i>faults</i>. Click <b>Run</b>. The temporary layer <i>Predicted boundary lines</i> is added, coloured by
+upper unit and labelled “upper/lower”.</li>
+<li><b>Edit</b> – toggle editing on the new layer and use the Vertex tool, Reshape, Split or Add line. Turn on snapping to
+the <i>faults</i> layer so that line ends sit on the faults. Delete wrong branches and connect lines that should meet.
+Then save the layer to a GeoPackage (right-click ▸ <i>Make Permanent</i>), because temporary layers are lost when QGIS closes.</li>
+<li><b>Build geological map…</b> – choose the edited lines and the faults. For the sample the extent (DEM),
+<i>bedding</i> (unit sample points) and <i>geology</i> (template) are pre-filled. Click <b>Run</b>.</li>
+<li>Check the <code>qa</code> field and the <i>Unclosed boundary ends</i> layer, fix the lines, and run step 4 again if needed.</li>
+</ol>
+
+<h2 id="params">6. Parameters</h2>
+<h3>Trace predicted boundary lines</h3>
+<table class="grid">
+<tr><th>Parameter</th><th>Meaning</th></tr>
+<tr><td>Azimuth field contains</td><td>Dip direction, or strike (right-hand rule: dip direction = strike + 90°).</td></tr>
+<tr><td>Method</td><td><i>Join points of the same boundary</i> (default) or <i>Each point on its own plane</i>.</td></tr>
+<tr><td>Join loose ends … closer than</td><td>Maximum gap (map units) between free ends of the same boundary that is closed with a straight segment. 0 = off. Ends on faults or the map frame are never joined.</td></tr>
+<tr><td>Blending power (advanced)</td><td>Higher values keep each point's own plane over a larger distance around the point. Lower values give smoother, more averaged surfaces. 3–6 works well.</td></tr>
+<tr><td>Maximum extension (advanced)</td><td>Limits the lines to this distance from the points (0 = whole fault block).</td></tr>
+<tr><td>Keep branches that pass no outcrop point (advanced)</td><td>Also keep other places where the same surface meets the ground (e.g. the same boundary across a valley).</td></tr>
+<tr><td>Minimum line length (advanced)</td><td>Drops short fragments.</td></tr>
+</table>
+<h3>Build geological map</h3>
+<table class="grid">
+<tr><th>Parameter</th><th>Meaning</th></tr>
+<tr><td>Upper / lower unit code field, upper-unit side field</td><td>Defaults <code>unit_u</code>, <code>unit_d</code>, <code>upper_side</code> (written by the tracing tool).</td></tr>
+<tr><td>Map extent</td><td>Frame of the map. If empty, the extent of the lines is used.</td></tr>
+<tr><td>Snapping tolerance</td><td>Line ends closer than this to another line are joined (map units, default 5).</td></tr>
+<tr><td>Merge unassigned slivers smaller than (advanced)</td><td>Area threshold for merging tiny unlabelled polygons.</td></tr>
+<tr><td>Dissolve polygons by unit</td><td>One (multi)polygon per unit, like the sample <i>geology</i> layer.</td></tr>
+</table>
+
+<h2 id="fields">7. Output fields</h2>
+<table class="grid">
+<tr><th>Layer</th><th>Field</th><th>Content</th></tr>
+<tr><td rowspan="8">Predicted boundary lines</td><td>bnd_id</td><td>Line number</td></tr>
+<tr><td>unit_u / unit_d</td><td>Upper / lower unit code</td></tr>
+<tr><td>upper_side</td><td>L / R – side of the upper unit along the line direction</td></tr>
+<tr><td>block_id</td><td>Fault block number</td></tr>
+<tr><td>n_pts</td><td>Number of outcrop points the line passes through</td></tr>
+<tr><td>pt_ids</td><td>Their feature ids</td></tr>
+<tr><td>method</td><td>blend / individual</td></tr>
+<tr><td>length_m</td><td>Length</td></tr>
+<tr><td rowspan="3">Geology</td><td>unit_code … kind</td><td>Same schema as the sample <i>geology</i> layer</td></tr>
+<tr><td>qa</td><td>ok / conflict / propagated / unassigned</td></tr>
+<tr><td>area_m2</td><td>Area</td></tr>
+</table>
+
+<h2 id="tips">8. Tips and limitations</h2>
+<ul>
+<li>The prediction assumes planar (or smoothly varying) boundaries. Tight folds, thickness changes and
+unconformities need more observation points or manual editing.</li>
+<li>The result can only be as good as the DEM and the attitudes. A 5° error in a 20° dip moves the line far on gentle
+slopes. Check the lines against field observations and aerial photos.</li>
+<li>A fault must reach the map frame or another fault to separate two blocks. Otherwise it only cuts lines.</li>
+<li>Use a projected CRS in metres. Geographic DEMs are rejected.</li>
+<li>Large DEMs: only the window of each fault block (or of the maximum extension) is read.</li>
+</ul>
+<p class="foot">License: GNU GPL v2 or later.</p>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>地層境界自動トレース－作図原理と操作説明</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<h1>地層境界自動トレース AutoTrace Stratigraphic Boundary</h1>
+<p class="lead">露頭点の姿勢（傾斜／傾斜方位）と数値標高モデル（DEM）から、<b>構造等高線法</b>により地層境界の露頭線を予測し、
+編集した境界線と断層から地質図を作成します。</p>
+
+<p class="langs"><a href="../en/index.html">English</a> · <a href="../zh_TW/index.html">繁體中文</a> · <a href="../zh_CN/index.html">简体中文</a> · 日本語</p>
+
+<h2>目次</h2>
+<ol>
+<li><a href="#workflow">作業の流れ</a></li>
+<li><a href="#principle">地層境界予測線の作図原理</a></li>
+<li><a href="#geology">地質図の作成原理</a></li>
+<li><a href="#data">データの準備</a></li>
+<li><a href="#steps">操作手順（サンプルプロジェクト）</a></li>
+<li><a href="#params">パラメータ</a></li>
+<li><a href="#fields">出力フィールド</a></li>
+<li><a href="#tips">注意点と制限</a></li>
+</ol>
+
+<h2 id="workflow">1. 作業の流れ</h2>
+<table class="flow"><tr>
+<td><b>①</b><br>露頭点<br>＋DEM＋断層</td><td>→</td>
+<td><b>②</b><br><i>地層境界予測線を作成</i><br>（一時レイヤ）</td><td>→</td>
+<td><b>③</b><br>QGIS で<br>予測線を編集</td><td>→</td>
+<td><b>④</b><br><i>地質図を作成</i><br>（geology ポリゴン）</td>
+</tr></table>
+<p>ツールはメニュー <b>プラグイン ▸ 地層境界自動トレース</b>、ツールバー、プロセッシングツールボックス
+（グループ「地質図作成」）にあります。バッチ処理やモデルにも組み込めます。</p>
+
+<h2 id="principle">2. 地層境界予測線の作図原理</h2>
+
+<h3>2.1 構造等高線法</h3>
+<p>短い範囲では地層境界面を<b>平面</b>とみなせます。露頭点 P<sub>0</sub>(x<sub>0</sub>, y<sub>0</sub>) は地表にあるので、
+標高 z<sub>0</sub> は DEM から読み取ります。傾斜 <i>δ</i>、傾斜方位 <i>α</i> のとき、この点を通る境界面は</p>
+<p class="eq">z<sub>s</sub>(x, y) = z<sub>0</sub> − tan δ · [ (x − x<sub>0</sub>) sin α + (y − y<sub>0</sub>) cos α ]</p>
+<p>境界面の<b>構造等高線</b>は走向に平行で、等高線間隔 <i>h</i> に対する水平間隔は <i>h</i> / tan δ です。
+構造等高線と<b>同じ標高</b>の地形等高線の交点が境界の露頭位置であり、それらを結ぶと露頭線になります。</p>
+<p>本プラグインは等高線の標高だけでなく、DEM の各セルで地表と境界面の高さの差</p>
+<p class="eq">F(x, y) = DEM(x, y) − z<sub>s</sub>(x, y)</p>
+<p>を計算し、<b>F = 0</b> の線を点の両側へ連続的に追跡します（GDAL の等値線生成、セル間は線形補間）。</p>
+<ul>
+<li>F &gt; 0：地表が境界面より上にあり、<b>上位（新しい）</b>地層が露出します。</li>
+<li>F &lt; 0：地表が境界面より下にあり、<b>下位（古い）</b>地層が露出します。</li>
+</ul>
+<div class="fig"><img src="../img/fig1_structure_contours.png" width="460"><br>
+<span class="cap">図 1－サンプル点 11（O5/O4、44°/241°）。茶：地形等高線、青破線：境界面の構造等高線、
+赤点：同標高の交点、赤線：予測露頭線（F = 0）。</span></div>
+<div class="fig"><img src="../img/fig2_profile.png" width="560"><br>
+<span class="cap">図 2－同じ点を通る傾斜方向の断面。破線：境界面、橙：上位層（地表が境界面より上）、青：下位層。</span></div>
+<p>そのため予測線は地形に応じて<b>谷に入り込み、尾根を回り込みます</b>（V 字則）。傾斜が緩いほど等高線に沿い、
+垂直層では直線になります。</p>
+
+<h3>2.2 同じ境界の点を端点でつなぐ</h3>
+<p><b>上位・下位コードが同じ</b>で<b>同じ断層ブロック</b>にある点は同じ境界に属します。各点の平面を逆距離加重で混合します：</p>
+<p class="eq">z(x, y) = Σ w<sub>i</sub> z<sub>i</sub>(x, y) / Σ w<sub>i</sub>、  w<sub>i</sub> = 1 / d<sub>i</sub><sup>p</sup></p>
+<p>z<sub>i</sub> は点 <i>i</i> の平面、d<sub>i</sub> はその点までの距離、<i>p</i> は「混合の重み指数」（既定 4）です。
+この曲面はすべての点を通り、各点ではその点の姿勢を保ちます。点の間では姿勢が徐々に変わるので、
+褶曲のヒンジやノーズも回り込めます。得られた F = 0 の線はすべての点を通り、同じ境界の点を端点でつなぎます。
+なお分かれた部分（DEM の欠測など）は、自由端の間隔が「同じ境界の端点を接続する最大間隔」以下なら直線で接続します。</p>
+<p>もう一つの手法「各点を個別の平面で」は各点自身の平面だけで追跡し、個々の姿勢データの確認に役立ちます。</p>
+<div class="fig"><img src="../img/fig3_traced.png" width="500"><br>
+<span class="cap">図 3－サンプルの予測線（未編集）。色＝上位層コード、黒線＝断層 F1、丸＝露頭点。
+点がまばらな所（西側の O3/O2 など）では線が分岐することがあり、そこが編集の対象です。</span></div>
+
+<h3>2.3 断層</h3>
+<p>断層と DEM の図郭で図幅を<b>断層ブロック</b>に分けます。点の混合はブロック内だけで行い、予測線もそのブロック内に
+切り取るため、<b>断層で止まり、端点はちょうど断層線上に来ます</b>。図幅内で消滅する断層も、交差する予測線を切断します。</p>
+
+<h3>2.4 上位層はどちら側か</h3>
+<p>各線の左右で F の符号を調べ、フィールド <code>upper_side</code> に <b>L</b> または <b>R</b> を記録します。
+線の始点から終点へ向かって、上位層が左右どちらに露出するかを表します。逆転層（<code>overturned = 1</code>）では左右を入れ替えます。
+このフィールドがあれば、地質図作成時に他の情報なしでポリゴンの地層を判定できます。</p>
+<p class="note">編集で<b>線の向きを反転</b>した場合は L／R も入れ替えてください。新しく線を描いた場合は
+<code>unit_u</code>、<code>unit_d</code>、分かれば <code>upper_side</code> も入力してください。</p>
+
+<h2 id="geology">3. 地質図の作成原理</h2>
+<ol>
+<li><b>ポリゴン化</b>：境界線・断層・図郭をノード化してポリゴンにします。他の線から<i>スナップ許容距離</i>内で止まっている線端は
+自動で接続し、小さな隙間で地層区が連結しないようにします。</li>
+<li><b>左右による判定</b>：境界線の各区間が投票し、<code>upper_side</code> 側のポリゴンに <code>unit_u</code>、
+反対側に <code>unit_d</code> を与えます（区間長で重み付け）。断層と重なる区間は除外します。</li>
+<li><b>地層コード点</b>（任意、<code>unit_code</code> を持つ <i>bedding</i> など）は含まれるポリゴンに投票し、優先されます。</li>
+<li><b>線をまたいだ推定</b>：<code>upper_side</code> のない線では、既知の側から反対側を推定します
+（U/D 境界の片側が U なら反対側は D）。推定は断層を越えません。</li>
+<li>小さな未判定の小片は共有辺が最も長い隣接区域に統合し、必要に応じて地層ごとに統合します。</li>
+<li><code>unit_name, strat_order, series, thick_m, kind</code> とスタイルは<i>テンプレート</i>（既存の geology など）からコピーします。
+テンプレートがない場合、<code>strat_order</code> は上下関係から求めます（1＝最古）。</li>
+</ol>
+<div class="fig"><img src="../img/fig4_geology.png" width="500"><br>
+<span class="cap">図 4－完成した境界線、断層 F1、サンプルの bedding 点から作成した地質図。</span></div>
+<p><b>品質チェック</b>：フィールド <code>qa</code> は <i>ok</i>、<i>conflict</i>（周囲の境界の判定が矛盾。多くは隙間や交差）、
+<i>propagated</i>（線をまたいだ推定）、<i>unassigned</i>（未判定）です。2 番目の出力「閉じていない境界端点」は
+どの線にも接していない端点を示します。接続して再実行してください。</p>
+
+<h2 id="data">4. データの準備</h2>
+<table class="grid">
+<tr><th>レイヤ</th><th>種類</th><th>フィールド（既定名）</th></tr>
+<tr><td>地層境界露頭点</td><td>ポイント</td><td><code>dip</code> 傾斜（0–90°）、<code>dip_dir</code> 傾斜方位（0–360°、または右手則の走向）、
+<code>unit_code_u</code> 上位層コード、<code>unit_code_d</code> 下位層コード、<code>overturned</code> 逆転（0/1、任意）</td></tr>
+<tr><td>DEM</td><td>ラスタ（GDAL ファイル）</td><td>メートル単位の投影座標系。解像度が線の細かさを決めます</td></tr>
+<tr><td>断層</td><td>ライン</td><td>フィールドは任意。ブロックを分けるには図郭か他の断層まで延ばしてください</td></tr>
+<tr><td>地層コード点（任意）</td><td>ポイント</td><td><code>unit_code</code></td></tr>
+<tr><td>テンプレート（任意）</td><td>ポリゴン</td><td><code>unit_code, unit_name, strat_order, series, thick_m, kind</code></td></tr>
+</table>
+<p>レイヤの座標系は異なっていても構いません。予測線は DEM の座標系、地質図は境界線の座標系に変換して処理します。</p>
+
+<h2 id="steps">5. 操作手順（サンプルプロジェクト）</h2>
+<ol>
+<li><b>プラグイン ▸ 地層境界自動トレース ▸ サンプルプロジェクトとデータをダウンロード…</b>：保存先フォルダを選ぶと、
+プロジェクト <i>C19.qgz</i>（プランジ褶曲を変位させた斜めずれ断層、EPSG:3826）と <i>c19_….gpkg</i>、<i>DEM.tif</i> が保存され、
+すぐに開けます。</li>
+<li><b>地層境界予測線を作成…</b>：ダイアログには <i>Stratigraphic_Boundary</i>、<i>DEM</i>、<i>faults</i> が自動で入ります。
+<b>実行</b>を押すと一時レイヤ「地層境界予測線」が追加され、上位層ごとに色分けされ「上位/下位」のラベルが付きます。</li>
+<li><b>編集</b>：レイヤを編集モードにし、頂点ツール・形状変更・分割・ライン追加を使います。<i>faults</i> へのスナップを有効にして
+端点を断層上に置きます。誤った分岐を削除し、つながるべき線を接続します。一時レイヤは QGIS を閉じると消えるので、
+GeoPackage に保存してください（右クリック ▸ <i>永続化</i>）。</li>
+<li><b>地質図を作成…</b>：編集済みの境界線と断層を選びます。サンプルでは図郭範囲（DEM）、<i>bedding</i>（地層コード点）、
+<i>geology</i>（テンプレート）が自動で入ります。<b>実行</b>を押します。</li>
+<li><code>qa</code> と「閉じていない境界端点」レイヤを確認し、線を修正して手順 4 を再実行します。</li>
+</ol>
+
+<h2 id="params">6. パラメータ</h2>
+<h3>地層境界予測線の作成</h3>
+<table class="grid">
+<tr><th>パラメータ</th><th>説明</th></tr>
+<tr><td>方位フィールドの内容</td><td>傾斜方位、または走向（右手則：傾斜方位＝走向＋90°）。</td></tr>
+<tr><td>手法</td><td>「同じ境界の点をつなぐ」（既定）または「各点を個別の平面で」。</td></tr>
+<tr><td>同じ境界の端点を接続する最大間隔</td><td>同じ境界の自由端がこの距離（地図単位）以内なら直線で接続。0＝接続しない。断層・図郭上の端点は接続しません。</td></tr>
+<tr><td>混合の重み指数（詳細）</td><td>大きいほど各点の平面が点の周囲で遠くまで保たれ、小さいほど滑らかで平均的な曲面になります。3–6 が目安。</td></tr>
+<tr><td>点からの最大延長距離（詳細）</td><td>予測線を点からこの距離以内に制限（0＝断層ブロック全体）。</td></tr>
+<tr><td>露頭点を通らない分岐も残す（詳細）</td><td>同じ曲面と地表の他の交線（谷の対岸の同じ境界など）も残します。</td></tr>
+<tr><td>最小線長（詳細）</td><td>短い断片を削除します。</td></tr>
+</table>
+<h3>地質図の作成</h3>
+<table class="grid">
+<tr><th>パラメータ</th><th>説明</th></tr>
+<tr><td>上位／下位層コード、上位層の側フィールド</td><td>既定 <code>unit_u</code>、<code>unit_d</code>、<code>upper_side</code>（予測線ツールが出力）。</td></tr>
+<tr><td>図郭範囲</td><td>地質図の枠。空欄なら線の範囲を使います。</td></tr>
+<tr><td>線端のスナップ許容距離</td><td>他の線までこの距離以内の線端は接続します（地図単位、既定 5）。</td></tr>
+<tr><td>隣接区域に統合する未判定の小片の面積上限（詳細）</td><td>この面積未満の未判定ポリゴンを隣に統合します。</td></tr>
+<tr><td>地層ごとにポリゴンを統合</td><td>地層ごとに 1 つの（マルチ）ポリゴン。サンプルの <i>geology</i> と同じ形式です。</td></tr>
+</table>
+
+<h2 id="fields">7. 出力フィールド</h2>
+<table class="grid">
+<tr><th>レイヤ</th><th>フィールド</th><th>内容</th></tr>
+<tr><td rowspan="8">地層境界予測線</td><td>bnd_id</td><td>線番号</td></tr>
+<tr><td>unit_u / unit_d</td><td>上位／下位層コード</td></tr>
+<tr><td>upper_side</td><td>L／R：線の向きに対する上位層の側</td></tr>
+<tr><td>block_id</td><td>断層ブロック番号</td></tr>
+<tr><td>n_pts</td><td>線が通る露頭点の数</td></tr>
+<tr><td>pt_ids</td><td>その地物 ID</td></tr>
+<tr><td>method</td><td>blend（混合）／individual（個別）</td></tr>
+<tr><td>length_m</td><td>長さ</td></tr>
+<tr><td rowspan="3">地質図 geology</td><td>unit_code … kind</td><td>サンプルの <i>geology</i> と同じスキーマ</td></tr>
+<tr><td>qa</td><td>ok／conflict／propagated／unassigned</td></tr>
+<tr><td>area_m2</td><td>面積</td></tr>
+</table>
+
+<h2 id="tips">8. 注意点と制限</h2>
+<ul>
+<li>予測は境界面が平面（または滑らかに変化する面）であることを前提とします。きつい褶曲、層厚変化、不整合には
+追加の観察点か手作業の編集が必要です。</li>
+<li>結果は DEM と姿勢データの精度に左右されます。緩斜面では傾斜 20° に 5° の誤差があるだけで線の位置が大きく変わります。
+野外記録や空中写真で確認してください。</li>
+<li>断層が図郭か他の断層まで達していないとブロックは分かれず、予測線を切断するだけになります。</li>
+<li>メートル単位の投影座標系を使用してください。地理座標系の DEM は受け付けません。</li>
+<li>大きな DEM でも、各ブロック（または最大延長距離）の範囲だけを読み込みます。</li>
+</ul>
+<p class="foot">ライセンス：GNU GPL v2 以降。</p>
+</body>
+</html>

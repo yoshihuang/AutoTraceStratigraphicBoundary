@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+dist/
+idea.txt
+*.qgs~
+*.qgz~
