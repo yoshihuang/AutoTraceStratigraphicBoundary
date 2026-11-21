@@ -56,6 +56,6 @@ To try it in QGIS, copy (or symlink) `autotrace_strat_boundary` into
 1. Fill in `author`, `email`, `homepage`, `repository`, `tracker` in `metadata.txt` (the repository must be public, e.g. GitHub).
 2. `python dev/package.py` → `dist/autotrace_strat_boundary-<version>.zip`.
 3. Sign in at <https://plugins.qgis.org> with an OSGeo ID → *Upload a plugin* → choose the zip.
-4. New plugins are reviewed by the QGIS team. `experimental=True` is recommended for the first versions.
+4. New plugins are reviewed by the QGIS team. Set `experimental=True` in `metadata.txt` for test versions, `False` for stable releases.
 
 License: GNU GPL v2 or later.
