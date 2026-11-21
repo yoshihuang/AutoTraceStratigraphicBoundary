@@ -187,17 +187,9 @@ def _memory_vector_datasource():
     """In-memory OGR datasource: 'Memory' driver before GDAL 3.11, vector-capable 'MEM' after."""
     for name in ("MEM", "Memory"):
         drv = ogr.GetDriverByName(name)
-        if drv is None:
+        if drv is None or drv.GetMetadataItem("DCAP_VECTOR") != "YES":
             continue
-        try:
-            if drv.GetMetadataItem("DCAP_VECTOR") != "YES":
-                continue
-        except Exception:
-            pass
-        try:
-            ds = drv.CreateDataSource("zero")
-        except Exception:
-            ds = None
+        ds = drv.CreateDataSource("zero")  # returns None on failure (exceptions are not enabled)
         if ds is not None:
             return ds
     raise RuntimeError("No in-memory OGR driver available")
@@ -483,7 +475,7 @@ class BoundaryTracer(object):
                 pi_.upper,
                 pi_.lower,
                 pi_.block,
-                pi_.points + pj_.points,
+                pi_.points + [p for p in pj_.points if p not in pi_.points],
                 "",  # recomputed by the caller
                 pi_.method,
             )

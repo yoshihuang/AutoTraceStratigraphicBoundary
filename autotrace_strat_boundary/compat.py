@@ -5,6 +5,7 @@ All enum lookups go through this module so the rest of the plugin never has
 to care which API generation is running.
 """
 from qgis.core import Qgis, QgsField
+from qgis.PyQt.QtCore import QVariant
 
 _USE_METATYPE = Qgis.QGIS_VERSION_INT >= 33800  # QgsField(name, QMetaType.Type) since 3.38
 if _USE_METATYPE:
@@ -15,8 +16,6 @@ if _USE_METATYPE:
     _T_STRING = QMetaType.Type.QString
 
 if not _USE_METATYPE:  # QGIS 3.x older than 3.38
-    from qgis.PyQt.QtCore import QVariant
-
     _T_DOUBLE = QVariant.Double
     _T_INT = QVariant.Int
     _T_STRING = QVariant.String
@@ -30,12 +29,12 @@ def _enum(new_path, old_path):
         if not path:
             continue
         obj = qc
-        try:
-            for part in path.split("."):
-                obj = getattr(obj, part)
+        for part in path.split("."):
+            obj = getattr(obj, part, None)
+            if obj is None:
+                break
+        if obj is not None:
             return obj
-        except AttributeError:
-            continue
     raise AttributeError("Cannot resolve enum %s / %s" % (new_path, old_path))
 
 
@@ -89,11 +88,6 @@ def is_null(value):
     """True for None and QVariant NULL."""
     if value is None:
         return True
-    try:
-        from qgis.PyQt.QtCore import QVariant
-
-        if isinstance(value, QVariant) and value.isNull():
-            return True
-    except Exception:
-        pass
+    if isinstance(value, QVariant) and value.isNull():
+        return True
     return str(value) == "NULL"

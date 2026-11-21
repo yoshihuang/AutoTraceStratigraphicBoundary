@@ -31,9 +31,7 @@ def extract_sample(target_dir, overwrite=True):
             if info.is_dir():
                 os.makedirs(dest, exist_ok=True)
                 continue
-            if os.path.exists(dest) and not overwrite:
-                pass
-            else:
+            if overwrite or not os.path.exists(dest):
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 with z.open(info) as src, open(dest, "wb") as out:
                     out.write(src.read())

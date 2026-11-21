@@ -14,7 +14,7 @@ fb = QgsProcessingFeedback()
 r = processing.run("autotracestrat:tracestratboundary", {
     "POINTS": GPKG + "|layername=Stratigraphic_Boundary", "DEM": DEM,
     "FAULTS": GPKG + "|layername=faults", "OUTPUT": "memory:"}, feedback=fb)
-lines = r["OUTPUT"]; print("lines", lines.featureCount(), [f.attributes()[:6] for f in lines.getFeatures()][:3])
+lines = r["OUTPUT"]; print("lines", lines.featureCount(), [f.attributes()[:7] for f in lines.getFeatures()][:3])
 r2 = processing.run("autotracestrat:buildgeology", {
     "BOUNDARIES": lines, "FAULTS": GPKG + "|layername=faults", "EXTENT": "250000,252000,2650000,2652000 [EPSG:3826]",
     "UNIT_POINTS": GPKG + "|layername=bedding", "TEMPLATE": GPKG + "|layername=geology",

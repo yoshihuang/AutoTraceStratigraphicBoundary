@@ -10,6 +10,7 @@ To add a language: add its code to LANGUAGES, add a column to every entry
 of STRINGS and add ``help/<code>/index.html``.
 """
 from qgis.core import QgsApplication, QgsSettings
+from qgis.PyQt.QtCore import QLocale
 
 SETTINGS_KEY = "AutoTraceStratBoundary/language"
 
@@ -46,17 +47,9 @@ def qgis_language():
     candidates = []
     if override:
         candidates.append(s.value("locale/userLocale", "") or "")
-    try:
-        from qgis.PyQt.QtCore import QLocale
-
-        candidates.append(QLocale.system().name())
-    except Exception:
-        pass
-    try:
-        candidates.append(QgsApplication.locale())
-    except Exception:
-        pass
-    app_lang = (candidates[-1] or "").split("_")[0].lower() if candidates else ""
+    candidates.append(QLocale.system().name())
+    candidates.append(QgsApplication.locale() or "")
+    app_lang = candidates[-1].split("_")[0].lower()
     for loc in candidates:
         if not loc:
             continue
@@ -64,7 +57,7 @@ def qgis_language():
         if app_lang and loc.split("_")[0].lower() != app_lang:
             continue
         return _from_locale(loc)
-    return _from_locale(candidates[-1] if candidates else "")
+    return _from_locale(candidates[-1])
 
 
 def preferred_setting():

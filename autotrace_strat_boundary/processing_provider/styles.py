@@ -9,7 +9,8 @@ from qgis.core import (
     QgsRendererCategory,
     QgsVectorLayerSimpleLabeling,
 )
-from qgis.PyQt.QtGui import QColor
+
+from .. import compat
 
 PALETTE = [
     "#e41a1c", "#ff7f00", "#4daf4a", "#377eb8", "#984ea3",
@@ -25,12 +26,8 @@ def _line_label(layer, expression):
     s = QgsPalLayerSettings()
     s.fieldName = expression
     s.isExpression = True
-    try:
-        from qgis.core import Qgis
-
-        s.placement = Qgis.LabelPlacement.Line
-    except AttributeError:  # QGIS < 3.26
-        s.placement = QgsPalLayerSettings.Line
+    # Qgis.LabelPlacement since QGIS 3.26, scoped QgsPalLayerSettings.Placement before
+    s.placement = compat._enum("Qgis.LabelPlacement.Line", "QgsPalLayerSettings.Placement.Line")
     layer.setLabeling(QgsVectorLayerSimpleLabeling(s))
     layer.setLabelsEnabled(True)
 

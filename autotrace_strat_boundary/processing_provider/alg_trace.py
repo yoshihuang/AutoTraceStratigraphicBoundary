@@ -29,11 +29,8 @@ ICON_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "icons")
 
 
 def _advanced(param):
-    try:
-        flag = compat._enum("Qgis.ProcessingParameterFlag.Advanced", "QgsProcessingParameterDefinition.FlagAdvanced")
-        param.setFlags(param.flags() | flag)
-    except AttributeError:
-        pass
+    flag = compat._enum("Qgis.ProcessingParameterFlag.Advanced", "QgsProcessingParameterDefinition.FlagAdvanced")
+    param.setFlags(param.flags() | flag)
     return param
 
 

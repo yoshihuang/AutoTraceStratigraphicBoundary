@@ -189,4 +189,4 @@ class AutoTraceStratBoundaryPlugin(object):
         from .help_dialog import HelpDialog
 
         dlg = HelpDialog(self.iface.mainWindow())
-        dlg.exec() if hasattr(dlg, "exec") else dlg.exec_()
+        dlg.exec()
