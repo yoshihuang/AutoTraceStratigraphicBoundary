@@ -4,3 +4,6 @@ dist/
 idea.txt
 *.qgs~
 *.qgz~
+*.gpkg-shm
+*.gpkg-wal
+*.gpkg-journal
