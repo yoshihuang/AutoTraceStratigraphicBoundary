@@ -37,7 +37,7 @@ autotrace_strat_boundary/      ← the plugin (this folder goes into the zip)
   viewer3d/                    offline three.js viewer template (three.js MIT licence)
   processing_provider/         Processing algorithms (toolbox, batch, models)
   help/<lang>/index.html       guide; help/img/*.png figures made from the sample data
-  data/c19_sample.zip          sample project (C19.qgz, GeoPackage, DEM)
+  data/c19_sample.zip          sample project (case.qgz, data.gpkg, DEM.tif)
 dev/                           test & build scripts (not shipped)
 ```
 

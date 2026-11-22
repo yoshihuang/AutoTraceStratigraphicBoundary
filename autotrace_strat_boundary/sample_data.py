@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Save the bundled sample project (C19 oblique-slip fault) to a user folder."""
+"""Save the bundled sample project (case.qgz + data.gpkg + DEM.tif, C19 oblique-slip fault) to a user folder."""
 import os
 import zipfile
 

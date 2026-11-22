@@ -9,7 +9,7 @@ import processing
 from autotrace_strat_boundary.processing_provider.provider import AutoTraceStratProvider
 PROV = AutoTraceStratProvider(); QgsApplication.processingRegistry().addProvider(PROV)
 SAMPLE = os.path.join(os.path.dirname(HERE), "c19_斜移斷層_由錯開的褶皺樞紐求淨滑移_gpkg")
-QgsProject.instance().read(os.path.join(SAMPLE, "C19.qgz"))
+QgsProject.instance().read(os.path.join(SAMPLE, "case.qgz"))
 P = {l.name(): l for l in QgsProject.instance().mapLayers().values()}
 OUT = sys.argv[1]
 os.makedirs(os.path.dirname(OUT), exist_ok=True)

@@ -1,6 +1,6 @@
 from qgis_env import *
 from qgis.core import QgsProject
-QgsProject.instance().read(os.path.join(SAMPLE, "C19.qgz"))
+QgsProject.instance().read(os.path.join(SAMPLE, "case.qgz"))
 root = QgsProject.instance().layerTreeRoot()
 for node in root.findLayers():
     l = node.layer()
