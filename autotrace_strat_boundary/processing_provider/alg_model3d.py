@@ -466,7 +466,7 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
         W.add("terrain_3d", mw.wkb_type("mpz"), [("unit_code", "s"), ("color", "s")], trows)
 
         # section sheets: each in its own local system (x = distance from 0, y = elevation x V.E.)
-        sec_crs = mw.section_crs()
+        sec_crs = crs  # values are local (x = distance, y = elevation); the CRS stays transformable
         sl_rows, fence_rows, viewer_secs, sheet_layers = [], [], [], []
         used_keys = set()
         for sec, res in zip(sections, sec_res):

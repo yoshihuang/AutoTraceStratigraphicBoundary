@@ -102,17 +102,11 @@ def wkb_type(key):
 
 
 # ----------------------------------------------------------------------------- sections
-# Every section sheet has its own local system: x = distance from the section start (0 at the left edge),
-# y = elevation (multiplied by the vertical exaggeration; = elevation when V.E. = 1). Metres.
-SECTION_CRS_WKT = ('ENGCRS["Geological section (distance, elevation)",EDATUM["Section line"],CS[Cartesian,2],'
-                   'AXIS["distance (x)",east,ORDER[1],LENGTHUNIT["metre",1]],'
-                   'AXIS["elevation (y)",north,ORDER[2],LENGTHUNIT["metre",1]]]')
-
-
-def section_crs():
-    from qgis.core import QgsCoordinateReferenceSystem
-
-    return QgsCoordinateReferenceSystem.fromWkt(SECTION_CRS_WKT)
+# Every section sheet uses local coordinates: x = distance from the section start (0 at the left edge),
+# y = elevation (multiplied by the vertical exaggeration; = elevation when V.E. = 1), in metres.
+# The layers carry the model's map CRS (not a local engineering CRS): QGIS must be able to transform
+# every layer to WGS 84 (extents, project saving, browser), otherwise it reports
+# "No transform is available between ... and EPSG:4326".
 
 
 def hex_rgb(c):
