@@ -42,6 +42,7 @@ def _enum(new_path, old_path):
 TYPE_VECTOR_POINT = _enum("Qgis.ProcessingSourceType.VectorPoint", "QgsProcessing.TypeVectorPoint")
 TYPE_VECTOR_LINE = _enum("Qgis.ProcessingSourceType.VectorLine", "QgsProcessing.TypeVectorLine")
 TYPE_VECTOR_POLYGON = _enum("Qgis.ProcessingSourceType.VectorPolygon", "QgsProcessing.TypeVectorPolygon")
+TYPE_MAP_LAYER = _enum("Qgis.ProcessingSourceType.MapLayer", "QgsProcessing.TypeMapLayer")
 TYPE_VECTOR_ANY = _enum("Qgis.ProcessingSourceType.VectorAnyGeometry", "QgsProcessing.TypeVectorAnyGeometry")
 
 # number parameter types

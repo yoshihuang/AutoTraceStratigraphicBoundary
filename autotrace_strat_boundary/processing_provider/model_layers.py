@@ -21,7 +21,7 @@ from ..i18n import tr
 
 VISIBLE = ("section_lines", "section_units", "section_profile", "section_faults", "section_frame", "section_labels")
 ORDER = ("section_labels", "section_frame", "section_faults", "section_profile", "section_units", "section_lines",
-         "section_fences_3d", "faults_3d", "horizons_3d", "units_3d", "terrain_3d")
+         "fold_axes_3d", "section_fences_3d", "faults_3d", "horizons_3d", "units_3d", "terrain_3d")
 
 
 def _fill_by_field(layer, alpha=255, outline="#333333", width="0.15"):
@@ -59,6 +59,9 @@ def style(layer, name):
                        width="0.15" if name == "section_units" else "0")
         if name == "section_units":
             _labels(layer, '"unit_code"', 9, True)
+    elif name == "fold_axes_3d":
+        layer.setRenderer(QgsSingleSymbolRenderer(QgsLineSymbol.createSimple(
+            {"line_color": "#c51b7d", "line_width": "0.8"})))
     elif name == "faults_3d":
         layer.setRenderer(QgsSingleSymbolRenderer(QgsFillSymbol.createSimple(
             {"color": "214,39,40,120", "outline_color": "#d62728", "outline_width": "0.1"})))

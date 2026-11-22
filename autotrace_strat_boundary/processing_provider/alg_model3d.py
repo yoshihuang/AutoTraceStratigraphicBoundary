@@ -12,7 +12,6 @@ from qgis.core import (
     QgsPointXY,
     QgsProcessingAlgorithm,
     QgsProcessingException,
-    QgsProcessingOutputFile,
     QgsProcessingOutputString,
     QgsProcessingParameterBand,
     QgsProcessingParameterBoolean,
@@ -23,6 +22,10 @@ from qgis.core import (
     QgsProcessingParameterNumber,
     QgsProcessingParameterRasterLayer,
     QgsProcessingParameterVectorLayer,
+    QgsProcessingParameterMultipleLayers,
+    QgsProcessingUtils,
+    QgsLineString,
+    QgsPoint,
     QgsRectangle,
 )
 from qgis.PyQt.QtGui import QIcon
@@ -90,13 +93,20 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
     DEPTH = "MODEL_DEPTH"
     VE = "VERTICAL_EXAGGERATION"
     USE_THICK = "USE_THICKNESS"
-    CAD = "CAD_FORMATS"
+    FOLDS = "FOLDS"
+    FO_TREND = "FOLD_TREND_FIELD"
+    FO_PLUNGE = "FOLD_PLUNGE_FIELD"
+    FO_TYPE = "FOLD_TYPE_FIELD"
+    FO_NAME = "FOLD_NAME_FIELD"
     OPEN = "OPEN_VIEWER"
     OUTPUT = "OUTPUT_GPKG"
-    VIEWER = "VIEWER_HTML"
+    OUT_DXF = "OUTPUT_DXF"
+    OUT_OBJ = "OUTPUT_OBJ"
+    OUT_STL = "OUTPUT_STL"
+    OUT_HTML = "OUTPUT_VIEWER"
     FILES = "CAD_FILES"
-
-    CAD_OPTIONS = ["DXF (polyface mesh)", "OBJ + MTL", "STL"]
+    DRAPE = "DRAPE_LAYERS"
+    DRAPE_PX = "DRAPE_RESOLUTION"
 
     def name(self):
         return "buildmodel3d"
@@ -141,6 +151,14 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
                                       optional=True))
         P(_advanced(QgsProcessingParameterNumber(self.F_DEFAULT_DIP, tr("m_fdefault"), compat.NUM_DOUBLE, 60.0,
                                                  minValue=1.0, maxValue=90.0)))
+        P(QgsProcessingParameterFeatureSource(self.FOLDS, tr("m_folds"), [compat.TYPE_VECTOR_LINE], optional=True))
+        P(QgsProcessingParameterField(self.FO_TREND, tr("m_ftrend"), "trend", self.FOLDS, compat.FIELD_NUMERIC,
+                                      optional=True))
+        P(QgsProcessingParameterField(self.FO_PLUNGE, tr("m_fplunge"), "plunge", self.FOLDS, compat.FIELD_NUMERIC,
+                                      optional=True))
+        P(QgsProcessingParameterField(self.FO_TYPE, tr("m_ftype"), "type", self.FOLDS, compat.FIELD_ANY, optional=True))
+        P(QgsProcessingParameterField(self.FO_NAME, tr("m_fname"), "label", self.FOLDS, compat.FIELD_ANY,
+                                      optional=True))
         P(QgsProcessingParameterFeatureSource(self.ATT, tr("m_att"), [compat.TYPE_VECTOR_POINT], optional=True))
         P(QgsProcessingParameterField(self.A_DIP, tr("p_dip"), "dip", self.ATT, compat.FIELD_NUMERIC, optional=True))
         P(QgsProcessingParameterField(self.A_AZ, tr("p_azimuth"), "dip_dir", self.ATT, compat.FIELD_NUMERIC,
@@ -166,10 +184,19 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
         P(QgsProcessingParameterNumber(self.CELL, tr("m_cell"), compat.NUM_DOUBLE, 0.0, minValue=0.0))
         P(QgsProcessingParameterNumber(self.DEPTH, tr("m_depth"), compat.NUM_DOUBLE, 0.0, minValue=0.0))
         P(_advanced(QgsProcessingParameterBoolean(self.USE_THICK, tr("m_usethick"), False)))
-        P(QgsProcessingParameterEnum(self.CAD, tr("m_cad"), self.CAD_OPTIONS, True, [0, 1], optional=True))
-        P(QgsProcessingParameterBoolean(self.OPEN, tr("m_open"), True))
+        P(QgsProcessingParameterMultipleLayers(self.DRAPE, tr("m_drape"), compat.TYPE_MAP_LAYER, optional=True))
+        P(_advanced(QgsProcessingParameterNumber(self.DRAPE_PX, tr("m_drape_px"), compat.NUM_INT, 2048,
+                                                 minValue=256, maxValue=8192)))
         P(QgsProcessingParameterFileDestination(self.OUTPUT, tr("m_out"), "GeoPackage (*.gpkg)"))
-        self.addOutput(QgsProcessingOutputFile(self.VIEWER, tr("m_viewer")))
+        P(QgsProcessingParameterFileDestination(self.OUT_DXF, tr("m_out_dxf"), "AutoCAD DXF (*.dxf)", optional=True,
+                                                createByDefault=True))
+        P(QgsProcessingParameterFileDestination(self.OUT_OBJ, tr("m_out_obj"), "Wavefront OBJ (*.obj)", optional=True,
+                                                createByDefault=True))
+        P(QgsProcessingParameterFileDestination(self.OUT_STL, tr("m_out_stl"), "STL (*.stl)", optional=True,
+                                                createByDefault=False))
+        P(QgsProcessingParameterFileDestination(self.OUT_HTML, tr("m_out_html"), "HTML (*.html)", optional=True,
+                                                createByDefault=True))
+        P(QgsProcessingParameterBoolean(self.OPEN, tr("m_open"), True))
         self.addOutput(QgsProcessingOutputString(self.FILES, tr("m_files")))
 
     # ------------------------------------------------------------------ helpers
@@ -206,6 +233,32 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
                 ui = mi.unit_at(polys, pidx, p.x(), p.y())
             out.append((p.x(), p.y(), float(topo(p.x(), p.y())), n[0], n[1], n[2], ui))
         return out
+
+    def prepareAlgorithm(self, parameters, context, feedback):  # noqa: N802
+        """Main thread: clone the map layers to drape, so they can be rendered in the worker thread."""
+        self._drape = []
+        for lyr in self.parameterAsLayerList(parameters, self.DRAPE, context) or []:
+            c = lyr.clone()
+            if c is not None:
+                self._drape.append(c)
+        return True
+
+    def _dest(self, parameters, key, context, fallback, ext):
+        """Output path of a file destination: '' = skipped; temporary files go next to the GeoPackage."""
+        if parameters.get(key) is None:
+            return ""
+        path = self.parameterAsFileOutput(parameters, key, context)
+        if not path:
+            return ""
+        tmp = os.path.normcase(os.path.abspath(QgsProcessingUtils.tempFolder()))
+        if os.path.normcase(os.path.abspath(path)).startswith(tmp):
+            path = fallback
+        if not path.lower().endswith(ext):
+            path = os.path.splitext(path)[0] + ext
+        d = os.path.dirname(os.path.abspath(path))
+        if not os.path.isdir(d):
+            os.makedirs(d)
+        return path
 
     # ------------------------------------------------------------------ main
     def processAlgorithm(self, parameters, context, feedback):  # noqa: N802
@@ -300,6 +353,30 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
                                 crs, topo, code_idx, polys, pidx, strike, feedback)
         grads += self._attitudes(parameters, context, self.ATT2, self.B_DIP, self.B_AZ, self.B_UNIT, self.B_OVER,
                                  crs, topo, code_idx, polys, pidx, strike, feedback)
+        folds = []
+        osrc = self.parameterAsSource(parameters, self.FOLDS, context)
+        if osrc is not None:
+            xf = QgsCoordinateTransform(osrc.sourceCrs(), crs, context.transformContext())
+            ft = existing_field(osrc, self.parameterAsString(parameters, self.FO_TREND, context))
+            fp = existing_field(osrc, self.parameterAsString(parameters, self.FO_PLUNGE, context))
+            fy = existing_field(osrc, self.parameterAsString(parameters, self.FO_TYPE, context))
+            fn = existing_field(osrc, self.parameterAsString(parameters, self.FO_NAME, context))
+            n_fold_pts = 0
+            for k, feat in enumerate(osrc.getFeatures()):
+                g = feat.geometry()
+                if g is None or g.isEmpty():
+                    continue
+                g.transform(xf)
+                trend = _num(feat[ft]) if ft else None
+                plunge = _num(feat[fp], 0.0) if fp else 0.0
+                kind = str(feat[fy]) if fy and not is_null(feat[fy]) else ""
+                name = str(feat[fn]) if fn and not is_null(feat[fn]) else (kind or "fold %d" % (k + 1))
+                traces = mi.trace_xy(g)
+                pts = mi.fold_constraints(traces, trend, plunge, topo, cell * 2.0, polys, pidx)
+                n_fold_pts += len(pts)
+                grads += pts
+                folds.append(dict(name=name, kind=kind, trend=trend, plunge=plunge, traces=traces, geom=g))
+            log(tr("m_msg_folds", n=len(folds), p=n_fold_pts))
         contacts = mi.contacts_from_geology(polys, fault_geoms, topo, cell * 0.75, cell * 0.5)
         log(tr("m_msg_inputs", u=len(units), c=len(contacts), a=len(grads), f=len(faults)))
         feedback.setProgress(5)
@@ -368,6 +445,8 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
         out_path = self.parameterAsFileOutput(parameters, self.OUTPUT, context)
         if not out_path.lower().endswith(".gpkg"):
             out_path += ".gpkg"
+        if not os.path.isdir(os.path.dirname(os.path.abspath(out_path))):
+            os.makedirs(os.path.dirname(os.path.abspath(out_path)))
         root = os.path.splitext(out_path)[0]
         W = mw.GpkgWriter(out_path, crs)
         ucol = [u.color for u in units]
@@ -420,6 +499,21 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
             for flt, run in res["faults"]:
                 sf_rows.append((QgsGeometry.fromPolylineXY(
                     [QgsPointXY(sx0 + s, sy0 + (z - res["zbase"]) * ve) for s, z in run]), [sec.name, flt.name]))
+            sec_geom = QgsGeometry.fromPolylineXY([QgsPointXY(*p) for p in sec.pts])
+            for fo in folds:
+                cross = sec_geom.intersection(fo["geom"])
+                if cross.isEmpty():
+                    continue
+                for part in (cross.asGeometryCollection() if cross.isMultipart() else [cross]):
+                    if part.isEmpty() or part.type() != compat.GEOM_POINT:
+                        continue
+                    s_ch = sec_geom.lineLocatePoint(part)
+                    zg = float(np.interp(s_ch, res["profile"][:, 0], res["profile"][:, 1]))
+                    xg, yg = sx0 + s_ch, sy0 + (zg - res["zbase"]) * ve
+                    tick = max(sec.length, (res["ztop"] - res["zbase"]) * ve) * 0.03
+                    fr_rows.append((QgsGeometry.fromPolylineXY([QgsPointXY(xg, yg), QgsPointXY(xg, yg + tick)]),
+                                    [sec.name, "fold"]))
+                    lb_rows.append((QgsGeometry.fromPointXY(QgsPointXY(xg, yg + tick * 1.4)), [sec.name, fo["name"], "fold"]))
             title = tr("m_sec_title", a=sec.title, ve="%g" % ve)
             lines, labels = mw.section_annotations(sec, res, sx0, sy0, ve, title)
             fr_rows += [(g, [sec.name, k]) for g, k in lines]
@@ -430,6 +524,17 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
                                     pts=[[float(p[0] - cx0), float(p[1] - cy0), u] for p, u in zip(sec.pts, u_of)],
                                     img=mw.section_image(res, ucol)))
             y_cursor = sy0 - gap
+        frows = []
+        for fo in folds:
+            for tr_pts in fo["traces"]:
+                arr = np.array(tr_pts)
+                z = topo(arr[:, 0], arr[:, 1])
+                frows.append((QgsGeometry(QgsLineString([QgsPoint(float(x), float(y), float(zz) + 1.0)
+                                                         for (x, y), zz in zip(arr, z)])),
+                              [fo["name"], fo["kind"], fo["trend"], fo["plunge"]]))
+        if frows:
+            W.add("fold_axes_3d", mw.wkb_type("lsz"), [("name", "s"), ("type", "s"), ("trend", "d"), ("plunge", "d")],
+                  frows)
         W.add("section_lines", mw.wkb_type("ls"), [("name", "s"), ("title", "s"), ("start", "s"), ("end", "s"),
                                                   ("length_m", "d")], sl_rows)
         W.add("section_units", mw.wkb_type("mp"), [("section", "s"), ("unit_code", "s"), ("unit_name", "s"),
@@ -444,7 +549,7 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
         info_rows = [("crs", crs.authid()), ("extent", "%.3f,%.3f,%.3f,%.3f" % extent), ("zbase", "%.2f" % zbase),
                      ("cell_size", "%.2f" % cell), ("vertical_exaggeration", "%g" % ve),
                      ("surface_agreement_pct", "%.1f" % agree), ("contacts", str(len(contacts))),
-                     ("attitudes", str(len(grads))), ("faults", str(len(faults)))]
+                     ("attitudes", str(len(grads))), ("faults", str(len(faults))), ("folds", str(len(folds)))]
         for S in model.series:
             info_rows.append(("series_%s_levels" % S.sid, ", ".join("%.2f" % v for v in S.levels if v > -1e11)))
         for k, w in enumerate(model.warnings):
@@ -460,18 +565,54 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
         meshes += [dict(name="horizon_%s_%s" % (units[b].code, units[a].code), color=units[a].color, verts=v, faces=f)
                    for sid, b, a, lv, v, f in hz]
         meshes.append(dict(name="terrain", color="#c8b48c", verts=tv, faces=tf))
-        cad = self.parameterAsEnums(parameters, self.CAD, context)
         polylines = []
         for sec in sections:
             z = topo(sec.pts[:, 0], sec.pts[:, 1])
             polylines.append(("section_%s" % sec.title, "#000000",
                               [(float(x), float(y), float(zz)) for (x, y), zz in zip(sec.pts, z)]))
-        if 0 in cad:
-            files += export3d.write_dxf(root + ".dxf", meshes, polylines)
-        if 1 in cad:
-            files += export3d.write_obj(root + ".obj", meshes)
-        if 2 in cad:
-            files += export3d.write_stl(root + ".stl", [m for m in meshes if m["name"].startswith("unit_")])
+        for fo in folds:
+            for tr_pts in fo["traces"]:
+                arr = np.array(tr_pts)
+                z = topo(arr[:, 0], arr[:, 1])
+                polylines.append(("fold_%s" % fo["name"], "#7b3294",
+                                  [(float(x), float(y), float(zz)) for (x, y), zz in zip(arr, z)]))
+        results = {}
+        # QGIS map draped on the terrain (viewer texture, OBJ texture, georeferenced PNG)
+        map_uri, map_png = None, ""
+        if getattr(self, "_drape", None):
+            img = mw.render_map(self._drape, crs, extent, self.parameterAsInt(parameters, self.DRAPE_PX, context),
+                                context.transformContext())
+            map_png = root + "_map.png"
+            img.save(map_png, "PNG")
+            mw.write_world_file(map_png, extent, img)
+            files += [map_png, os.path.splitext(map_png)[0] + ".pgw"]
+            map_uri = mw.image_data_uri(img, "JPG", 88)
+            log(tr("m_msg_drape", n=len(self._drape), w=img.width(), h=img.height()))
+        terrain_mesh = meshes[-1]
+        if map_png:
+            terrain_mesh["uv"] = np.column_stack([(tv[:, 0] - extent[0]) / (extent[2] - extent[0]),
+                                                  (tv[:, 1] - extent[1]) / (extent[3] - extent[1])])
+            terrain_mesh["color"] = "#ffffff"
+        p_dxf = self._dest(parameters, self.OUT_DXF, context, root + ".dxf", ".dxf")
+        if p_dxf:
+            files += export3d.write_dxf(p_dxf, meshes, polylines)
+            results[self.OUT_DXF] = p_dxf
+        p_obj = self._dest(parameters, self.OUT_OBJ, context, root + ".obj", ".obj")
+        if p_obj:
+            if map_png:
+                tex = os.path.splitext(p_obj)[0] + "_map.png"
+                if os.path.abspath(tex) != os.path.abspath(map_png):
+                    import shutil
+
+                    shutil.copyfile(map_png, tex)
+                    files.append(tex)
+                terrain_mesh["texture"] = tex
+            files += export3d.write_obj(p_obj, meshes)
+            results[self.OUT_OBJ] = p_obj
+        p_stl = self._dest(parameters, self.OUT_STL, context, root + ".stl", ".stl")
+        if p_stl:
+            files += export3d.write_stl(p_stl, [m for m in meshes if m["name"].startswith("unit_")])
+            results[self.OUT_STL] = p_stl
         feedback.setProgress(92)
 
         # ------------------------------------------------------------ viewer
@@ -484,25 +625,40 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
         tcols = np.array([mw.hex_rgb(units[u].color) if u >= 0 else (200, 200, 200) for u in tu], dtype=np.uint8)
         vmesh.append(mw.viewer_mesh("terrain", "terrain", "#ffffff", tv, tf, center, face_colors=tcols))
         lang = current_language()
+        vlines = []
+        for fo in folds:
+            col = "#7b3294" if "syn" in fo["kind"].lower() or "向" in fo["kind"] else "#c51b7d"
+            for tr_pts in fo["traces"]:
+                arr = np.array(tr_pts)
+                z = topo(arr[:, 0], arr[:, 1]) + 3.0
+                vlines.append(dict(kind="fold", name=fo["name"], color=col,
+                                   pts=[[float(x - center[0]), float(y - center[1]), float(zz)]
+                                        for (x, y), zz in zip(arr, z)]))
         data = dict(
             title=tr("m_viewer_title"), subtitle="%s · %s · %s %.1f%%" % (geo.name(), crs.authid(),
                                                                          tr("m_agree_short"), agree),
             units=[dict(code=u.code, name=u.name, color=u.color) for u in reversed(units)],
-            meshes=vmesh, sections=viewer_secs, warnings=model.warnings[:3], lang=lang,
+            meshes=vmesh, lines=vlines, sections=viewer_secs, warnings=model.warnings[:3], lang=lang,
+            map_img=map_uri,
             extent=[extent[0] - center[0], extent[1] - center[1], extent[2] - center[0], extent[3] - center[1],
                     zbase, topo.max],
             text={k: tr("v_" + k) for k in ("h_units", "h_layers", "h_ve", "h_cut", "h_view", "top", "iso", "shot",
-                                             "hint", "terrain", "sections", "faults", "horizons")},
+                                             "hint", "terrain", "sections", "faults", "horizons", "folds", "map")},
         )
-        viewer = mw.write_viewer(root + "_viewer.html", data)
-        files.append(viewer)
+        viewer = self._dest(parameters, self.OUT_HTML, context, root + "_viewer.html", ".html")
+        if viewer:
+            mw.write_viewer(viewer, data)
+            files.append(viewer)
+            results[self.OUT_HTML] = viewer
         feedback.setProgress(100)
         log(tr("m_msg_done", s="%.0f" % (time.time() - t_start), n=len(files)))
         for f in files:
             log("  " + f)
-        self._post = dict(gpkg=out_path, viewer=viewer, open=self.parameterAsBool(parameters, self.OPEN, context),
-                          layers=list(W.layers))
-        return {self.OUTPUT: out_path, self.VIEWER: viewer, self.FILES: ";".join(files)}
+        self._post = dict(gpkg=out_path, viewer=viewer,
+                          open=bool(viewer) and self.parameterAsBool(parameters, self.OPEN, context),
+                          layers=list(W.layers), files=files)
+        results.update({self.OUTPUT: out_path, self.FILES: ";".join(files)})
+        return results
 
     def postProcessAlgorithm(self, context, feedback):  # noqa: N802
         post = getattr(self, "_post", None)
@@ -514,9 +670,23 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
             load_model_layers(post["gpkg"], context.project() or None, post["layers"])
         except Exception as e:  # never fail the run because of styling
             feedback.reportError(str(e))
-        if post["open"]:
-            from qgis.PyQt.QtCore import QUrl
-            from qgis.PyQt.QtGui import QDesktopServices
+        from qgis.PyQt.QtCore import QUrl
+        from qgis.PyQt.QtGui import QDesktopServices
 
+        if post["open"]:
             QDesktopServices.openUrl(QUrl.fromLocalFile(post["viewer"]))
+        try:
+            from qgis.utils import iface
+        except ImportError:
+            iface = None
+        if iface is not None and iface.messageBar() is not None:
+            from qgis.PyQt.QtWidgets import QPushButton
+
+            folder = os.path.dirname(os.path.abspath(post["gpkg"]))
+            bar = iface.messageBar()
+            widget = bar.createMessage(tr("alg_model3d"), tr("m_done_bar", n=len(post["files"]), folder=folder))
+            btn = QPushButton(tr("m_open_folder"), widget)
+            btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(folder)))
+            widget.layout().addWidget(btn)
+            bar.pushWidget(widget, compat._enum("Qgis.MessageLevel.Success", "Qgis.Success"), 15)
         return {}

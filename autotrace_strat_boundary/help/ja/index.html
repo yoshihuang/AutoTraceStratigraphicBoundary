@@ -195,18 +195,21 @@ DEM 上に置き、各境界は f の等値面です。<b>姿勢</b>（傾斜・
 <tr><td>断面の垂直誇張</td><td>断面図の垂直誇張。</td></tr>
 <tr><td>セルサイズ／モデル深さ</td><td>0＝自動（図幅幅の 1/40；深さは最低地表から図幅幅の 35%）。小さいほど滑らかですがファイルは大きくなります。</td></tr>
 <tr><td>層厚を境界面の間隔に使う（詳細）</td><td>境界から求めず、<code>thick_m</code> で境界面の間隔を固定します。</td></tr>
-<tr><td>3D CAD 形式</td><td>DXF（polyface mesh、地層ごとのレイヤ）、OBJ + MTL（色付き）、STL（地層ごとのファイル）。</td></tr>
+<tr><td>褶曲軸跡（トレンド、プランジ、種類、名称）</td><td>ヒンジでは地層面が褶曲軸を含むため、軸跡上の点が姿勢条件になります（トレンド空欄＝軸跡の方向、プランジ空欄＝0）。褶曲軸は 3D ビューアに表示し、断面に記号を付け、<code>fold_axes_3d</code> に保存します。</td></tr>
+<tr><td>地形面に貼る地図レイヤ</td><td>既定は QGIS で表示中のレイヤ。描画して 3D ビューアと OBJ の地形面に貼り、<code>*_map.png</code>＋<code>.pgw</code> として保存します。</td></tr>
+<tr><td>出力ファイル</td><td>GeoPackage、DXF（polyface mesh、地層ごとのレイヤ）、OBJ + MTL（色・地形テクスチャ付き）、STL（地層ごと、既定は出力しない）、3D ビューアをそれぞれ別のファイル名・フォルダに保存でき、省略もできます。一時ファイルのままの出力は GeoPackage と同じフォルダに保存します。</td></tr>
 </table>
 <h3>8.3 出力</h3>
 <table class="grid">
 <tr><th>GeoPackage レイヤ</th><th>内容</th></tr>
 <tr><td>units_3d</td><td>各地層の閉じた 3D 立体（MultiPolygonZ の三角形）と体積</td></tr>
 <tr><td>horizons_3d／faults_3d／terrain_3d</td><td>地層境界面、断層面、地層で色分けした地形面</td></tr>
+<tr><td>fold_axes_3d</td><td>地形面に沿わせた褶曲軸跡</td></tr>
 <tr><td>section_fences_3d</td><td>断面線上に立てた 3D 断面（QGIS の 3D マップビュー用）</td></tr>
 <tr><td>section_units／section_profile／section_faults／section_frame／section_labels</td><td>地図座標で地質図の下に配置した断面図（x＝距離、y＝標高×垂直誇張）。印刷レイアウトにそのまま使えます</td></tr>
 <tr><td>section_lines／model_info</td><td>地図上の断面線；パラメータ、境界面の値、警告</td></tr>
 </table>
-<p>GeoPackage の横に <code>*.dxf</code>、<code>*.obj</code> + <code>*.mtl</code>、<code>*_unit_*.stl</code>、<code>*_viewer.html</code> を出力します。
+<p>このほか（ファイル名はダイアログで指定）<code>*.dxf</code>、<code>*.obj</code> + <code>*.mtl</code>、<code>*_unit_*.stl</code>、<code>*_viewer.html</code> を出力します。
 最後はオフラインの 3D ビューア（three.js）で、地層の表示切替、透明度、垂直誇張、東西／南北の切断、断面表示、PNG 保存ができます。
 アドレスに <code>#nopanel</code> を付けるとパネルを隠してスクリーンショットを撮れます。</p>
 

@@ -197,10 +197,15 @@ class AutoTraceStratBoundaryPlugin(object):
         bedding = _find_layer(GEOM_POINT, ["bedding"], ("dip", "dip_dir"))
         bnd = _find_layer(GEOM_POINT, ["Stratigraphic_Boundary"], ("dip", "unit_code_u"))
         sections = _find_layer(GEOM_LINE, ["section_line", "section", "剖面"])
-        for key, lyr in (("GEOLOGY", geology), ("DEM", dem), ("FAULTS", faults), ("ATTITUDES", bedding),
-                         ("ATTITUDES2", bnd), ("SECTIONS", sections)):
+        folds = _find_layer(GEOM_LINE, ["fold_axes", "fold", "褶皺", "褶皱"])
+        for key, lyr in (("GEOLOGY", geology), ("DEM", dem), ("FAULTS", faults), ("FOLDS", folds),
+                         ("ATTITUDES", bedding), ("ATTITUDES2", bnd), ("SECTIONS", sections)):
             if lyr is not None:
                 params[key] = lyr.id()
+        # drape the map as currently shown: the visible layers, in drawing order (top first)
+        visible = [lyr.id() for lyr in QgsProject.instance().layerTreeRoot().checkedLayers()]
+        if visible:
+            params["DRAPE_LAYERS"] = visible
         self._open_algorithm_dialog("%s:buildmodel3d" % PROVIDER_ID, params)
 
     def download_sample(self):

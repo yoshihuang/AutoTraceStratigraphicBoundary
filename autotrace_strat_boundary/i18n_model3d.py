@@ -159,4 +159,80 @@ STRINGS = {
             "<li>3D CAD：DXF（polyface mesh）、OBJ + MTL、STL。オフラインの 3D ビューア（HTML）も作成します。</li></ul>"),
     },
 }
+
+# 1.2: folds and explicit output files
+STRINGS.update({
+    "m_folds": {
+        "en": "Fold axial traces (optional, e.g. fold_axes)", "zh_TW": "褶皺軸跡（選填，如 fold_axes）",
+        "zh_CN": "褶皱轴迹（可选，如 fold_axes）", "ja": "褶曲軸跡（任意、例：fold_axes）"},
+    "m_ftrend": {
+        "en": "Fold axis trend field (empty = along the trace)", "zh_TW": "褶皺軸趨向欄位（空白＝沿軸跡方向）",
+        "zh_CN": "褶皱轴趋向字段（空白＝沿轴迹方向）", "ja": "褶曲軸のトレンドフィールド（空欄＝軸跡の方向）"},
+    "m_fplunge": {
+        "en": "Fold axis plunge field (empty = 0)", "zh_TW": "褶皺軸傾沒角欄位（空白＝0）",
+        "zh_CN": "褶皱轴倾伏角字段（空白＝0）", "ja": "褶曲軸のプランジフィールド（空欄＝0）"},
+    "m_ftype": {
+        "en": "Fold type field (anticline / syncline)", "zh_TW": "褶皺類型欄位（背斜／向斜）",
+        "zh_CN": "褶皱类型字段（背斜／向斜）", "ja": "褶曲の種類フィールド（背斜／向斜）"},
+    "m_fname": {"en": "Fold name field", "zh_TW": "褶皺名稱欄位", "zh_CN": "褶皱名称字段", "ja": "褶曲名フィールド"},
+    "m_out_dxf": {
+        "en": "3D CAD file – DXF (polyface meshes)", "zh_TW": "3D CAD 檔案－DXF（polyface mesh）",
+        "zh_CN": "3D CAD 文件－DXF（polyface mesh）", "ja": "3D CAD ファイル－DXF（polyface mesh）"},
+    "m_out_obj": {
+        "en": "3D CAD file – OBJ + MTL", "zh_TW": "3D CAD 檔案－OBJ + MTL",
+        "zh_CN": "3D CAD 文件－OBJ + MTL", "ja": "3D CAD ファイル－OBJ + MTL"},
+    "m_out_stl": {
+        "en": "3D CAD file – STL (one file per unit)", "zh_TW": "3D CAD 檔案－STL（每個地層一個檔案）",
+        "zh_CN": "3D CAD 文件－STL（每个地层一个文件）", "ja": "3D CAD ファイル－STL（地層ごとに 1 ファイル）"},
+    "m_out_html": {
+        "en": "3D viewer (HTML)", "zh_TW": "3D 檢視器（HTML）", "zh_CN": "3D 查看器（HTML）", "ja": "3D ビューア（HTML）"},
+    "m_msg_folds": {
+        "en": "Folds {n}: {p} hinge constraints added", "zh_TW": "褶皺 {n} 條：加入 {p} 個樞紐位態條件",
+        "zh_CN": "褶皱 {n} 条：加入 {p} 个枢纽产状条件", "ja": "褶曲 {n} 本：ヒンジ条件 {p} 点を追加"},
+    "m_done_bar": {
+        "en": "{n} files written to {folder}", "zh_TW": "已輸出 {n} 個檔案至 {folder}",
+        "zh_CN": "已输出 {n} 个文件至 {folder}", "ja": "{n} 個のファイルを {folder} に出力しました"},
+    "m_open_folder": {"en": "Open folder", "zh_TW": "開啟資料夾", "zh_CN": "打开文件夹", "ja": "フォルダを開く"},
+    "v_folds": {"en": "Fold axes", "zh_TW": "褶皺軸", "zh_CN": "褶皱轴", "ja": "褶曲軸"},
+})
+for _lang, _text in (
+    ("en", "<p><b>Folds</b>: along every fold axial trace the bedding contains the fold axis (trend / plunge), "
+           "so the trace adds attitude constraints at the hinge.</p>"
+           "<p><b>Files</b>: choose the GeoPackage and, separately, the DXF, OBJ, STL and viewer files. "
+           "Outputs left as temporary files are written next to the GeoPackage.</p>"),
+    ("zh_TW", "<p><b>褶皺</b>：褶皺樞紐處的地層面包含褶皺軸（趨向／傾沒角），因此軸跡會在樞紐加入位態條件。</p>"
+              "<p><b>檔案</b>：可分別指定 GeoPackage 與 DXF、OBJ、STL、3D 檢視器的檔名與位置；"
+              "保留為暫存檔者會存在 GeoPackage 同一資料夾。</p>"),
+    ("zh_CN", "<p><b>褶皱</b>：褶皱枢纽处的地层面包含褶皱轴（趋向／倾伏角），因此轴迹会在枢纽加入产状条件。</p>"
+              "<p><b>文件</b>：可分别指定 GeoPackage 与 DXF、OBJ、STL、3D 查看器的文件名与位置；"
+              "保留为临时文件者会存在 GeoPackage 同一文件夹。</p>"),
+    ("ja", "<p><b>褶曲</b>：ヒンジでは地層面が褶曲軸（トレンド／プランジ）を含むため、軸跡がヒンジの姿勢条件になります。</p>"
+           "<p><b>ファイル</b>：GeoPackage と DXF・OBJ・STL・3D ビューアの保存先を個別に指定できます。"
+           "一時ファイルのままの出力は GeoPackage と同じフォルダに保存します。</p>"),
+):
+    STRINGS["help_model3d"][_lang] += _text
+STRINGS.update({
+    "m_drape": {
+        "en": "Map layers draped on the terrain (3D viewer, OBJ texture)", "zh_TW": "貼在地形面上的地圖圖層（3D 檢視器、OBJ 貼圖）",
+        "zh_CN": "贴在地形面上的地图图层（3D 查看器、OBJ 贴图）", "ja": "地形面に貼る地図レイヤ（3D ビューア、OBJ テクスチャ）"},
+    "m_drape_px": {
+        "en": "Map image size (pixels, long side)", "zh_TW": "地圖影像大小（長邊像素）",
+        "zh_CN": "地图影像大小（长边像素）", "ja": "地図画像サイズ（長辺ピクセル）"},
+    "m_msg_drape": {
+        "en": "Map of {n} layers rendered for the terrain ({w} x {h} px)", "zh_TW": "已將 {n} 個圖層的地圖繪製為地形貼圖（{w} × {h} 像素）",
+        "zh_CN": "已将 {n} 个图层的地图绘制为地形贴图（{w} × {h} 像素）", "ja": "{n} レイヤの地図を地形テクスチャとして描画（{w} × {h} px）"},
+    "v_map": {"en": "QGIS map on the terrain", "zh_TW": "地形面貼上 QGIS 地圖", "zh_CN": "地形面贴上 QGIS 地图",
+              "ja": "地形面に QGIS 地図を貼る"},
+})
+for _lang, _text in (
+    ("en", "<p><b>Map drape</b>: the chosen map layers (by default the visible layers) are rendered and draped on "
+           "the terrain of the 3D viewer and of the OBJ file, and saved as a georeferenced PNG (*_map.png + .pgw).</p>"),
+    ("zh_TW", "<p><b>地圖貼圖</b>：所選的地圖圖層（預設為目前顯示的圖層）會繪製成影像，貼在 3D 檢視器與 OBJ 的地形面上，"
+              "並另存為含地理參考的 PNG（*_map.png＋.pgw）。</p>"),
+    ("zh_CN", "<p><b>地图贴图</b>：所选的地图图层（默认为当前显示的图层）会绘制成影像，贴在 3D 查看器与 OBJ 的地形面上，"
+              "并另存为含地理参考的 PNG（*_map.png＋.pgw）。</p>"),
+    ("ja", "<p><b>地図の貼り付け</b>：選んだ地図レイヤ（既定は表示中のレイヤ）を画像にして 3D ビューアと OBJ の地形面に貼り、"
+           "位置情報付き PNG（*_map.png＋.pgw）としても保存します。</p>"),
+):
+    STRINGS["help_model3d"][_lang] += _text
 # fmt: on

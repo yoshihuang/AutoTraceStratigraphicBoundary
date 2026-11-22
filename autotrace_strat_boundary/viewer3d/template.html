@@ -94,10 +94,18 @@
     g.setAttribute('position', new THREE.BufferAttribute(q, 3));
     if (m.idx) g.setIndex(new THREE.BufferAttribute(b64(m.idx, Uint32Array), 1));
     if (m.col) g.setAttribute('color', new THREE.BufferAttribute(b64(m.col, Uint8Array), 3, true));
+    if (m.kind === 'terrain') {   // uv from map coordinates: the QGIS map image spans the model extent
+      const uv = new Float32Array(p.length / 3 * 2);
+      for (let i = 0, k = 0; i < p.length; i += 3, k += 2) {
+        uv[k] = (p[i] - DATA.extent[0]) / (DATA.extent[2] - DATA.extent[0]);
+        uv[k + 1] = (p[i + 1] - DATA.extent[1]) / (DATA.extent[3] - DATA.extent[1]);
+      }
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    }
     g.computeVertexNormals();
     return g;
   }
-  const groups = { solid: [], horizon: [], fault: [], terrain: [], section: [] };
+  const groups = { solid: [], horizon: [], fault: [], terrain: [], section: [], fold: [] };
   for (const m of DATA.meshes) {
     const mat = new THREE.MeshLambertMaterial({
       color: m.col ? 0xffffff : new THREE.Color(m.color), vertexColors: !!m.col, side: THREE.DoubleSide,
@@ -107,6 +115,25 @@
     const mesh = new THREE.Mesh(geom(m), mat);
     mesh.userData = m; model.add(mesh); groups[m.kind].push(mesh);
     if (m.kind === 'horizon') mesh.visible = false;
+  }
+  // QGIS map draped on the terrain (switchable with the geology colours)
+  let mapMat = null;
+  if (DATA.map_img && groups.terrain.length) {
+    const tex = new THREE.TextureLoader().load(DATA.map_img);
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 4;
+    if (THREE.sRGBEncoding !== undefined) tex.encoding = THREE.sRGBEncoding;
+    mapMat = new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide, transparent: true, clippingPlanes: clips,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+    groups.terrain.forEach(m => { m.userData.geoMat = m.material; m.material = mapMat; });
+  }
+  // fold axial traces: tubes draped on the terrain
+  const tubeR = Math.max(ext[2] - ext[0], ext[3] - ext[1]) / 350;
+  for (const l of (DATA.lines || [])) {
+    if (l.pts.length < 2) continue;
+    const curve = new THREE.CatmullRomCurve3(l.pts.map(([x, y, z]) => new THREE.Vector3(x, z, -y)));
+    const g = new THREE.TubeGeometry(curve, Math.max(8, l.pts.length * 4), tubeR, 6, false);
+    const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: new THREE.Color(l.color), clippingPlanes: clips }));
+    mesh.userData = { kind: 'fold', name: l.name }; model.add(mesh); groups.fold.push(mesh);
   }
   // sections: textured vertical walls along the section lines
   for (const s of DATA.sections) {
@@ -140,7 +167,7 @@
   }
   const lBox = $('layers');
   for (const [key, label, on] of [['terrain', T.terrain, true], ['section', T.sections, false],
-                                   ['fault', T.faults, true], ['horizon', T.horizons, false]]) {
+                                   ['fault', T.faults, true], ['fold', T.folds, true], ['horizon', T.horizons, false]]) {
     if (!groups[key].length) continue;
     const l = document.createElement('label'); l.className = 'row';
     l.innerHTML = '<input type="checkbox"' + (on ? ' checked' : '') + '><span></span>';
@@ -150,6 +177,15 @@
     lBox.appendChild(l);
   }
   function bindRange(id, fmt, fn) { const r = $(id), v = $(id + 'V'); const f = () => { v.textContent = fmt(+r.value); fn(+r.value); }; r.oninput = f; f(); }
+  if (mapMat) {
+    const l = document.createElement('label'); l.className = 'row';
+    l.innerHTML = '<input type="checkbox" checked><span></span>';
+    l.lastChild.textContent = T.map;
+    l.firstChild.onchange = (e) => groups.terrain.forEach(m => {
+      const op = m.material.opacity; m.material = e.target.checked ? mapMat : m.userData.geoMat;
+      m.material.opacity = op; m.material.depthWrite = op >= 1; });
+    lBox.insertBefore(l, lBox.children[1] || null);
+  }
   bindRange('opSolid', v => v + '%', v => groups.solid.forEach(m => { m.material.transparent = v < 100; m.material.opacity = v / 100; m.material.depthWrite = v >= 100; }));
   bindRange('opTerrain', v => v + '%', v => groups.terrain.forEach(m => { m.material.opacity = v / 100; m.material.depthWrite = v >= 100; }));
   bindRange('ve', v => '×' + v, v => { model.scale.y = v; });

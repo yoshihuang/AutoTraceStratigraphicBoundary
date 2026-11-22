@@ -30,9 +30,13 @@ def write_obj(path, meshes):
     with open(mtl, "w", encoding="utf-8") as fh:
         for m in meshes:
             r, g, b = (v / 255.0 for v in hex_rgb(m["color"]))
-            fh.write("newmtl %s\nKd %.4f %.4f %.4f\nKa 0 0 0\nd %.3f\nillum 1\n\n" % (
+            fh.write("newmtl %s\nKd %.4f %.4f %.4f\nKa 0 0 0\nd %.3f\nillum 1\n" % (
                 safe_name(m["name"]), r, g, b, m.get("opacity", 1.0)))
+            if m.get("texture"):
+                fh.write("map_Kd %s\n" % os.path.basename(m["texture"]))
+            fh.write("\n")
     base = 1
+    tbase = 1
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("# AutoTrace Stratigraphic Boundary - 3D geological model\n")
         fh.write("mtllib %s\n" % os.path.basename(mtl))
@@ -40,7 +44,14 @@ def write_obj(path, meshes):
             v, f = m["verts"], m["faces"]
             fh.write("o %s\ng %s\nusemtl %s\n" % ((safe_name(m["name"]),) * 3))
             fh.write("".join("v %.3f %.3f %.3f\n" % tuple(p) for p in v))
-            fh.write("".join("f %d %d %d\n" % tuple(t) for t in (f + base)))
+            uv = m.get("uv")
+            if uv is not None:
+                fh.write("".join("vt %.5f %.5f\n" % tuple(t) for t in uv))
+                fh.write("".join("f %d/%d %d/%d %d/%d\n" % (a, a2, b, b2, c, c2)
+                                 for (a, b, c), (a2, b2, c2) in zip(f + base, f + tbase)))
+                tbase += len(uv)
+            else:
+                fh.write("".join("f %d %d %d\n" % tuple(t) for t in (f + base)))
             base += len(v)
     return [path, mtl]
 

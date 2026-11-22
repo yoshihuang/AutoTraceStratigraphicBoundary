@@ -194,18 +194,21 @@
 <tr><td>剖面垂直夸大倍率</td><td>剖面图的垂直夸大。</td></tr>
 <tr><td>网格大小／模型深度</td><td>0＝自动（图幅宽度的 1/40；深度为最低地表以下图幅宽度的 35%）。网格越小越平滑，但文件越大。</td></tr>
 <tr><td>以地层厚度作为界面间距（高级）</td><td>以 <code>thick_m</code> 固定界面间距，而不由界线推求。</td></tr>
-<tr><td>3D CAD 格式</td><td>DXF（polyface mesh，每个地层一个图层）、OBJ + MTL（含颜色）、STL（每个地层一个文件）。</td></tr>
+<tr><td>褶皱轴迹（趋向、倾伏角、类型、名称）</td><td>褶皱枢纽处的地层面包含褶皱轴，因此沿轴迹的采样点会成为产状条件（趋向空白＝沿轴迹方向，倾伏角空白＝0）。褶皱轴会显示于 3D 查看器、标示于剖面上，并存为 <code>fold_axes_3d</code>。</td></tr>
+<tr><td>贴在地形面上的地图图层</td><td>默认为 QGIS 中当前显示的图层，绘制后贴在 3D 查看器与 OBJ 的地形面上，并存为 <code>*_map.png</code>＋<code>.pgw</code>。</td></tr>
+<tr><td>输出文件</td><td>GeoPackage、DXF（polyface mesh，每个地层一个图层）、OBJ + MTL（含颜色与地形贴图）、STL（每个地层一个文件，默认不输出）与 3D 查看器，可各自指定文件名与文件夹，也可跳过；保留为临时文件者会存在 GeoPackage 同一文件夹。</td></tr>
 </table>
 <h3>8.3 输出</h3>
 <table class="grid">
 <tr><th>GeoPackage 图层</th><th>内容</th></tr>
 <tr><td>units_3d</td><td>各地层的封闭 3D 实体（MultiPolygonZ 三角网）及体积</td></tr>
 <tr><td>horizons_3d／faults_3d／terrain_3d</td><td>地层界面、断层面、按地层着色的地形面</td></tr>
+<tr><td>fold_axes_3d</td><td>贴合地形面的褶皱轴迹</td></tr>
 <tr><td>section_fences_3d</td><td>立在剖面线上的 3D 剖面（供 QGIS 3D 地图查看）</td></tr>
 <tr><td>section_units／section_profile／section_faults／section_frame／section_labels</td><td>地质剖面图，以地图坐标绘于地质图下方（x＝距离、y＝高程×垂直夸大），可直接放入打印布局</td></tr>
 <tr><td>section_lines／model_info</td><td>地图上的剖面线；参数、界面场值与警告</td></tr>
 </table>
-<p>GeoPackage 旁另有 <code>*.dxf</code>、<code>*.obj</code> + <code>*.mtl</code>、<code>*_unit_*.stl</code> 与 <code>*_viewer.html</code>。
+<p>另可输出（文件名可在对话框指定）<code>*.dxf</code>、<code>*.obj</code> + <code>*.mtl</code>、<code>*_unit_*.stl</code> 与 <code>*_viewer.html</code>。
 后者是离线 3D 查看器（three.js），可切换各地层、调整透明度与垂直夸大、东西／南北向切割、显示剖面并存为 PNG；
 网址后加上 <code>#nopanel</code> 可隐藏面板以便截图。</p>
 

@@ -17,7 +17,12 @@ t = time.time()
 r = processing.run("autotracestrat:buildmodel3d", {
     "GEOLOGY": P["geology"], "DEM": P["DEM"], "FAULTS": P["faults"], "ATTITUDES": P["bedding"],
     "ATTITUDES2": P["Stratigraphic_Boundary"], "SECTIONS": P["section_line"], "VERTICAL_EXAGGERATION": 1,
-    "CAD_FORMATS": [0, 1, 2], "OPEN_VIEWER": False, "OUTPUT_GPKG": OUT})
+    "FOLDS": P["fold_axes"], "OPEN_VIEWER": False, "OUTPUT_GPKG": OUT,
+    "DRAPE_LAYERS": [P[n] for n in ("Stratigraphic_Boundary", "faults", "fold_axes", "contours", "geology")],
+    "OUTPUT_DXF": os.path.join(os.path.dirname(OUT), "cad", "c19_cad.dxf"),
+    "OUTPUT_OBJ": os.path.join(os.path.dirname(OUT), "cad", "c19_cad.obj"),
+    "OUTPUT_STL": os.path.join(os.path.dirname(OUT), "cad", "c19_cad.stl"),
+    "OUTPUT_VIEWER": os.path.join(os.path.dirname(OUT), "c19_view.html")})
 print("time %.1fs" % (time.time() - t))
 print(r)
 import sqlite3
@@ -26,7 +31,14 @@ for (n,) in c.execute("select table_name from gpkg_contents"):
     print("  ", n, c.execute('select count(*) from "%s"' % n).fetchone()[0])
 print(c.execute("select * from model_info").fetchall())
 print([l.name() for l in QgsProject.instance().mapLayers().values() if l.source().startswith(OUT)])
-for f in sorted(os.listdir(os.path.dirname(OUT))): print("  file", f, os.path.getsize(os.path.join(os.path.dirname(OUT), f)) // 1024, "KB")
+for dp, dn, fn in os.walk(os.path.dirname(OUT)):
+    for f in sorted(fn):
+        print("  file", os.path.relpath(os.path.join(dp, f), os.path.dirname(OUT)), os.path.getsize(os.path.join(dp, f)) // 1024, "KB")
+# temporary CAD outputs -> next to the gpkg
+OUT2 = os.path.join(os.path.dirname(OUT), "tmpcase", "m2.gpkg")
+r2 = processing.run("autotracestrat:buildmodel3d", {"GEOLOGY": P["geology"], "DEM": P["DEM"], "FAULTS": P["faults"],
+    "OPEN_VIEWER": False, "OUTPUT_GPKG": OUT2, "OUTPUT_DXF": "TEMPORARY_OUTPUT", "OUTPUT_STL": None})
+print("temp case:", sorted(os.listdir(os.path.dirname(OUT2))), {k: os.path.basename(v) for k, v in r2.items() if k != "CAD_FILES"})
 # render map + section sheet as QGIS shows it
 os.environ["QT_QPA_FONTDIR"] = r"C:\Windows\Fonts"
 from qgis.core import QgsMapSettings, QgsMapRendererParallelJob, QgsRectangle

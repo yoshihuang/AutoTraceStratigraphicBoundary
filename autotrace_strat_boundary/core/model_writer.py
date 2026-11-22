@@ -9,9 +9,10 @@ import numpy as np
 from osgeo import gdal, ogr
 
 from qgis.core import (QgsCoordinateTransformContext, QgsFeature, QgsFields, QgsGeometry, QgsLineString,
-                       QgsPoint, QgsPointXY, QgsPolygon, QgsVectorFileWriter)
-from qgis.PyQt.QtCore import QBuffer, QByteArray, QIODevice
-from qgis.PyQt.QtGui import QImage
+                       QgsMapRendererCustomPainterJob, QgsMapSettings, QgsPoint, QgsPointXY, QgsPolygon, QgsRectangle,
+                       QgsVectorFileWriter)
+from qgis.PyQt.QtCore import QBuffer, QByteArray, QIODevice, QSize
+from qgis.PyQt.QtGui import QColor, QImage, QPainter
 
 from .. import compat
 from .model3d import AIR
@@ -209,6 +210,51 @@ def section_annotations(sec, res, sheet_x0, sheet_y0, ve, label):
     labels.append((QgsPointXY(x1, sheet_y0 + (g1 - res["zbase"]) * ve + tick * 2), sec.end, "end"))
     labels.append((QgsPointXY(sheet_x0 + L / 2.0, y1 + tick * 3), label, "title"))
     return lines, labels
+
+
+# ----------------------------------------------------------------------------- map drape
+def render_map(layers, crs, extent, max_px, transform_context=None):
+    """Render *layers* (first = top) over *extent* into a QImage whose size matches the extent's aspect."""
+    x0, y0, x1, y1 = extent
+    w, h = x1 - x0, y1 - y0
+    if w >= h:
+        px, py = max_px, max(2, int(round(max_px * h / w)))
+    else:
+        px, py = max(2, int(round(max_px * w / h))), max_px
+    ms = QgsMapSettings()
+    ms.setLayers(layers)
+    ms.setDestinationCrs(crs)
+    ms.setExtent(QgsRectangle(x0, y0, x1, y1))
+    ms.setOutputSize(QSize(px, py))
+    ms.setBackgroundColor(QColor(255, 255, 255))
+    if transform_context is not None:
+        ms.setTransformContext(transform_context)
+    img = QImage(px, py, QImage.Format.Format_ARGB32_Premultiplied)
+    img.fill(QColor(255, 255, 255))
+    painter = QPainter(img)
+    job = QgsMapRendererCustomPainterJob(ms, painter)
+    job.renderSynchronously()
+    painter.end()
+    return img
+
+
+def image_data_uri(img, fmt="JPG", quality=88):
+    ba = QByteArray()
+    buf = QBuffer(ba)
+    buf.open(QIODevice.OpenModeFlag.WriteOnly)
+    img.save(buf, fmt, quality)
+    buf.close()
+    mime = "image/jpeg" if fmt.upper() in ("JPG", "JPEG") else "image/png"
+    return "data:%s;base64,%s" % (mime, base64.b64encode(bytes(ba)).decode("ascii"))
+
+
+def write_world_file(png_path, extent, img):
+    """ESRI world file (.pgw) so the map image opens georeferenced in GIS / CAD."""
+    x0, y0, x1, y1 = extent
+    sx = (x1 - x0) / float(img.width())
+    sy = (y1 - y0) / float(img.height())
+    with open(os.path.splitext(png_path)[0] + ".pgw", "w") as fh:
+        fh.write("%.10f\n0\n0\n%.10f\n%.6f\n%.6f\n" % (sx, -sy, x0 + sx / 2.0, y1 - sy / 2.0))
 
 
 # ----------------------------------------------------------------------------- viewer

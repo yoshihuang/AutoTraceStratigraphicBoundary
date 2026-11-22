@@ -213,18 +213,21 @@ meshes, so volumes are computed (<code>volume_m3</code>).</li>
 <tr><td>Vertical exaggeration</td><td>Of the section sheet.</td></tr>
 <tr><td>Cell size / model depth</td><td>0 = automatic (1/40 of the map width; depth 35 % of the width below the lowest ground). Smaller cells give smoother but larger files.</td></tr>
 <tr><td>Use the unit thicknesses (advanced)</td><td>Fixes the spacing of the interfaces to <code>thick_m</code> instead of solving it from the contacts.</td></tr>
-<tr><td>3D CAD formats</td><td>DXF (polyface meshes, one layer per unit), OBJ + MTL (colours), STL (one file per unit).</td></tr>
+<tr><td>Fold axial traces (trend, plunge, type, name)</td><td>At a fold hinge the bedding contains the fold axis, so points along every axial trace become attitude constraints (trend empty = along the trace, plunge empty = 0). Fold axes are drawn in the 3D viewer, marked on the sections and saved as <code>fold_axes_3d</code>.</td></tr>
+<tr><td>Map layers draped on the terrain</td><td>Default: the layers visible in QGIS. They are rendered and draped on the terrain of the 3D viewer and the OBJ file, and saved as <code>*_map.png</code> + <code>.pgw</code>.</td></tr>
+<tr><td>Output files</td><td>GeoPackage, DXF (polyface meshes, one layer per unit), OBJ + MTL (colours, textured terrain), STL (one file per unit, off by default) and the 3D viewer: each with its own file name and folder; skip any of them. Outputs left as temporary files are written next to the GeoPackage.</td></tr>
 </table>
 <h3>8.3 Outputs</h3>
 <table class="grid">
 <tr><th>GeoPackage layer</th><th>Content</th></tr>
 <tr><td>units_3d</td><td>Closed 3D solid of every unit (MultiPolygonZ, triangles) with volume</td></tr>
 <tr><td>horizons_3d / faults_3d / terrain_3d</td><td>Interfaces between units, fault planes, ground surface coloured by unit</td></tr>
+<tr><td>fold_axes_3d</td><td>Fold axial traces draped on the terrain</td></tr>
 <tr><td>section_fences_3d</td><td>Sections as vertical 3D panels on the section lines (for the QGIS 3D map view)</td></tr>
 <tr><td>section_units / section_profile / section_faults / section_frame / section_labels</td><td>The section sheet, placed below the map in the map CRS (x = distance, y = elevation × V.E.), ready for a print layout</td></tr>
 <tr><td>section_lines / model_info</td><td>Section lines on the map; parameters, interface levels and warnings</td></tr>
 </table>
-<p>Next to the GeoPackage: <code>*.dxf</code>, <code>*.obj</code> + <code>*.mtl</code>, <code>*_unit_*.stl</code> and <code>*_viewer.html</code>
+<p>Other outputs (file names chosen in the dialog): <code>*.dxf</code>, <code>*.obj</code> + <code>*.mtl</code>, <code>*_unit_*.stl</code> and <code>*_viewer.html</code>
 – an offline 3D viewer (three.js) with unit switches, transparency, vertical exaggeration, east / north cut planes,
 sections and PNG export. Add <code>#nopanel</code> to its address for a clean screenshot.</p>
 
