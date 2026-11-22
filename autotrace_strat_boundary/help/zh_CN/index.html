@@ -183,7 +183,7 @@
 <div class="fig"><img src="../img/fig5_model3d.png" width="560"><br>
 <span class="cap">图 5－示例的 3D 地质模型：倾伏背斜（核部 O1）被断层 F1 错移；地形面贴上地质图。</span></div>
 <div class="fig"><img src="../img/fig6_section.png" width="620"><br>
-<span class="cap">图 6－示例的地质剖面 A–A'（垂直夸大 ×1），绘于 QGIS 地质图下方。</span></div>
+<span class="cap">图 6－示例的地质剖面 A–A'（垂直夸大 ×1），x＝自起点起算的距离，y＝高程。</span></div>
 <h3>8.2 参数</h3>
 <table class="grid">
 <tr><th>参数</th><th>说明</th></tr>
@@ -196,7 +196,7 @@
 <tr><td>以地层厚度作为界面间距（高级）</td><td>以 <code>thick_m</code> 固定界面间距，而不由界线推求。</td></tr>
 <tr><td>褶皱轴迹（趋向、倾伏角、类型、名称）</td><td>褶皱枢纽处的地层面包含褶皱轴，因此沿轴迹的采样点会成为产状条件（趋向空白＝沿轴迹方向，倾伏角空白＝0）。褶皱轴会显示于 3D 查看器、标示于剖面上，并存为 <code>fold_axes_3d</code>。</td></tr>
 <tr><td>贴在地形面上的地图图层</td><td>默认为 QGIS 中当前显示的图层，绘制后贴在 3D 查看器与 OBJ 的地形面上，并存为 <code>*_map.png</code>＋<code>.pgw</code>。</td></tr>
-<tr><td>输出文件夹、文件名前缀、3D CAD 格式</td><td>所有成果输出至同一文件夹：<code>前缀.gpkg</code>、<code>前缀_viewer.html</code>、<code>前缀_sections.qgz</code>、<code>前缀_map.png</code>＋<code>.pgw</code>，以及勾选的 CAD 格式：DXF（polyface mesh，每个地层一个图层）、OBJ + MTL（含颜色与地形贴图）、STL（每个地层一个文件）。</td></tr>
+<tr><td>输出文件夹、文件名前缀、3D CAD 格式</td><td>所有成果输出至同一文件夹：<code>前缀.gpkg</code>、<code>前缀_viewer.html</code>、<code>前缀_section_&lt;剖面名&gt;.qgz</code>（每个剖面一个）、<code>前缀_map.png</code>＋<code>.pgw</code>，以及勾选的 CAD 格式：DXF（polyface mesh，每个地层一个图层）、OBJ + MTL（含颜色与地形贴图）、STL（每个地层一个文件）。</td></tr>
 </table>
 <h3>8.3 输出</h3>
 <table class="grid">
@@ -205,10 +205,10 @@
 <tr><td>horizons_3d／faults_3d／terrain_3d</td><td>地层界面、断层面、按地层着色的地形面</td></tr>
 <tr><td>fold_axes_3d</td><td>贴合地形面的褶皱轴迹</td></tr>
 <tr><td>section_fences_3d</td><td>立在剖面线上的 3D 剖面（供 QGIS 3D 地图查看）</td></tr>
-<tr><td>section_units／section_profile／section_faults／section_frame／section_labels</td><td>地质剖面图，以地图坐标绘于地质图下方（x＝距离、y＝高程×垂直夸大），可直接放入打印布局</td></tr>
+<tr><td>section_&lt;剖面名&gt;_units／_profile／_faults／_frame／_labels</td><td>各剖面的地质剖面图，各自成图层；剖面坐标：x＝自起点起算的距离（0 起），y＝高程×垂直夸大</td></tr>
 <tr><td>section_lines／model_info</td><td>地图上的剖面线；参数、界面场值与警告</td></tr>
 </table>
-<p><b>剖面工程</b>：<code>前缀_sections.qgz</code> 只包含地质剖面图（含图例的地层、地形线、断层、褶皱标示、图框、刻度与标注）及一个 A3 打印布局，可直接输出 PDF。它会另开一个 QGIS 窗口，当前工程不会被关闭或更改。</p>
+<p><b>剖面工程</b>：每条剖面线在 GeoPackage 中都有各自的图层（<code>section_&lt;剖面名&gt;_units／_profile／_faults／_frame／_labels</code>，如 <code>section_A_A_units</code>），并各自存为 <code>前缀_section_&lt;剖面名&gt;.qgz</code>，可分别打开预览。每个剖面使用自己的坐标：<b>x＝自剖面起点起算的距离（左缘为 0），y＝高程</b>（垂直夸大不为 1 时乘上倍率），因此地形线左端的 y 值即为剖面起点的地表高程。每个工程只包含该剖面的地质剖面图（含图例的地层、地形线、断层、褶皱标示、图框、刻度与标注）及一个 A3 打印布局，可直接输出 PDF。第一个剖面工程会另开一个 QGIS 窗口，当前工程不会被关闭或更改。</p>
 <p><b>3D 查看器</b>：<code>前缀_viewer.html</code>（three.js，可离线使用）可切换各地层、调整透明度与垂直夸大、东西／南北向切割，以及<b>剖面切割</b>：选择剖面与要保留的一侧，模型即沿剖面线切开，切面以剖面图呈现，视角也会转向切面。网址后加 <code>#cut=0:L</code>（或 <code>0:R</code>）可直接以切割状态打开，加 <code>#nopanel</code> 可隐藏面板以便截图。</p>
 <div class="fig"><img src="../img/fig7_section_cut.png" width="560"><br>
 <span class="cap">图 7－3D 查看器的剖面切割：模型沿 A–A' 切开，切面以剖面图呈现。</span></div>

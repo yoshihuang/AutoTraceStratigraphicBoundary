@@ -35,5 +35,6 @@ for dp, dn, fn in os.walk(os.path.dirname(OUT)):
         print("  file", os.path.relpath(os.path.join(dp, f), os.path.dirname(OUT)), os.path.getsize(os.path.join(dp, f)) // 1024, "KB")
 # the sections project
 from qgis.core import QgsProject as _P
-sp = _P(); ok = sp.read(r["SECTIONS_PROJECT"])
-print("sections project:", ok, [l.name() for l in sp.mapLayers().values()], [lo.name() for lo in sp.layoutManager().layouts()])
+for proj in r["SECTION_PROJECTS"].split(";"):
+    sp = _P(); ok = sp.read(proj)
+    print("section project:", os.path.basename(proj), ok, sorted(l.name() for l in sp.mapLayers().values()), [lo.name() for lo in sp.layoutManager().layouts()])

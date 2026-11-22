@@ -9,8 +9,13 @@ app = QgsApplication([], True); app.initQgis()
 from autotrace_strat_boundary.processing_provider.model_layers import style
 gpkg = sys.argv[1]; out = sys.argv[2]
 lays = []
-for n in ("section_labels", "section_frame", "section_faults", "section_profile", "section_units"):
-    l = QgsVectorLayer("%s|layername=%s" % (gpkg, n), n, "ogr"); style(l, n)
+import sqlite3
+tables = [t for (t,) in sqlite3.connect(gpkg).execute("select table_name from gpkg_contents")]
+key = sorted({t[len("section_"):].rsplit("_", 1)[0] for t in tables if t.startswith("section_") and t.endswith("_units")})[0]
+for kind in ("labels", "frame", "faults", "profile", "units"):
+    n = "section_%s_%s" % (key, kind)
+    l = QgsVectorLayer("%s|layername=%s" % (gpkg, n), n, "ogr"); style(l, "section_" + kind)
+    n = "section_" + kind
     if n == "section_labels": l.setSubsetString("\"kind\" <> 'title'")
     QgsProject.instance().addMapLayer(l); lays.append(l)
 ext = lays[1].extent(); ext.grow(ext.width() * 0.05)

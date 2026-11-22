@@ -200,6 +200,7 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
         self.addOutput(QgsProcessingOutputFile(self.OUTPUT, tr("m_out")))
         self.addOutput(QgsProcessingOutputFile(self.VIEWER, tr("m_out_html")))
         self.addOutput(QgsProcessingOutputFile(self.SEC_PROJECT, tr("m_sec_project")))
+        self.addOutput(QgsProcessingOutputString("SECTION_PROJECTS", tr("m_sec_project")))
         self.addOutput(QgsProcessingOutputString(self.FILES, tr("m_files")))
 
     # ------------------------------------------------------------------ helpers
@@ -464,15 +465,14 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
             trows.append((mw.geom_from_wkb(mw.triangles_wkb(tv, tf[m])), [units[ui].code, units[ui].color]))
         W.add("terrain_3d", mw.wkb_type("mpz"), [("unit_code", "s"), ("color", "s")], trows)
 
-        # section sheet below the map
-        H = ext.height()
-        gap = 0.08 * max(H, size * 0.5)
-        y_cursor = extent[1] - gap
-        sl_rows, su_rows, sp_rows, sf_rows, fr_rows, lb_rows, fence_rows, viewer_secs = [], [], [], [], [], [], [], []
+        # section sheets: each in its own local system (x = distance from 0, y = elevation x V.E.)
+        sec_crs = mw.section_crs()
+        sl_rows, fence_rows, viewer_secs, sheet_layers = [], [], [], []
+        used_keys = set()
         for sec, res in zip(sections, sec_res):
-            h = (res["ztop"] - res["zbase"]) * ve
-            sy0 = y_cursor - h - gap * 0.35
-            sx0 = extent[0]
+            su_rows, sp_rows, sf_rows, fr_rows, lb_rows = [], [], [], [], []
+            sx0 = 0.0                      # left edge of the section = distance 0
+            sy0 = res["zbase"] * ve        # so that y = elevation x V.E. everywhere on the sheet
             sl_rows.append((QgsGeometry.fromPolylineXY([QgsPointXY(*p) for p in sec.pts]),
                             [sec.name, sec.title, sec.start, sec.end, sec.length]))
             per_unit = {}
@@ -514,7 +514,21 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
                                     ztop=res["ztop"], zbase=res["zbase"],
                                     pts=[[float(p[0] - cx0), float(p[1] - cy0), u] for p, u in zip(sec.pts, u_of)],
                                     img=mw.section_image(res, ucol)))
-            y_cursor = sy0 - gap
+            key = export3d.safe_name(sec.title).strip("_") or "section"
+            base_key, n = key, 2
+            while key.lower() in used_keys:
+                key, n = "%s_%d" % (base_key, n), n + 1
+            used_keys.add(key.lower())
+            names = {k: "section_%s_%s" % (key, k) for k in ("units", "profile", "faults", "frame", "labels")}
+            W.add(names["units"], mw.wkb_type("mp"), [("section", "s"), ("unit_code", "s"), ("unit_name", "s"),
+                                                      ("color", "s")],
+                  [(QgsGeometry(g).makeValid() if not g.isGeosValid() else g, a_) for g, a_ in su_rows], crs=sec_crs)
+            W.add(names["profile"], mw.wkb_type("ls"), [("section", "s")], sp_rows, crs=sec_crs)
+            W.add(names["faults"], mw.wkb_type("ls"), [("section", "s"), ("fault", "s")], sf_rows, crs=sec_crs)
+            W.add(names["frame"], mw.wkb_type("ls"), [("section", "s"), ("kind", "s")], fr_rows, crs=sec_crs)
+            W.add(names["labels"], mw.wkb_type("pt"), [("section", "s"), ("text", "s"), ("kind", "s")], lb_rows,
+                  crs=sec_crs)
+            sheet_layers.append(dict(name=sec.name, title=sec.title, key=key, layers=names))
         frows = []
         for fo in folds:
             for tr_pts in fo["traces"]:
@@ -528,17 +542,11 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
                   frows)
         W.add("section_lines", mw.wkb_type("ls"), [("name", "s"), ("title", "s"), ("start", "s"), ("end", "s"),
                                                   ("length_m", "d")], sl_rows)
-        W.add("section_units", mw.wkb_type("mp"), [("section", "s"), ("unit_code", "s"), ("unit_name", "s"),
-                                                  ("color", "s")],
-              [(QgsGeometry(g).makeValid() if not g.isGeosValid() else g, a) for g, a in su_rows])
-        W.add("section_profile", mw.wkb_type("ls"), [("section", "s")], sp_rows)
-        W.add("section_faults", mw.wkb_type("ls"), [("section", "s"), ("fault", "s")], sf_rows)
-        W.add("section_frame", mw.wkb_type("ls"), [("section", "s"), ("kind", "s")], fr_rows)
-        W.add("section_labels", mw.wkb_type("pt"), [("section", "s"), ("text", "s"), ("kind", "s")], lb_rows)
         W.add("section_fences_3d", mw.wkb_type("mpz"), [("section", "s"), ("unit_code", "s"), ("color", "s")],
               fence_rows)
         info_rows = [("crs", crs.authid()), ("extent", "%.3f,%.3f,%.3f,%.3f" % extent), ("zbase", "%.2f" % zbase),
                      ("cell_size", "%.2f" % cell), ("vertical_exaggeration", "%g" % ve),
+                     ("section_sheet_coordinates", "x = distance from the section start (m), y = elevation x V.E. (m)"),
                      ("surface_agreement_pct", "%.1f" % agree), ("contacts", str(len(contacts))),
                      ("attitudes", str(len(grads))), ("faults", str(len(faults))), ("folds", str(len(folds)))]
         for S in model.series:
@@ -633,13 +641,16 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
         log(tr("m_msg_done", s="%.0f" % (time.time() - t_start), n=len(files)))
         for f in files:
             log("  " + f)
-        sec_project = root + "_sections.qgz"
-        files.append(sec_project)
-        self._post = dict(gpkg=out_path, viewer=viewer, folder=folder, project=sec_project, crs=crs,
+        for sl in sheet_layers:
+            sl["project"] = "%s_section_%s.qgz" % (root, sl["key"])
+            files.append(sl["project"])
+        sec_project = sheet_layers[0]["project"] if sheet_layers else ""
+        self._post = dict(gpkg=out_path, viewer=viewer, folder=folder, sheets=sheet_layers, crs=sec_crs, ve=ve,
                           title=tr("m_sec_project_title", name=prefix), layers=list(W.layers), files=files,
                           open=self.parameterAsBool(parameters, self.OPEN, context),
                           open_sec=self.parameterAsBool(parameters, self.OPEN_SEC, context))
         results.update({self.OUTPUT: out_path, self.VIEWER: viewer, self.SEC_PROJECT: sec_project,
+                        "SECTION_PROJECTS": ";".join(sl["project"] for sl in sheet_layers),
                         self.FILES: ";".join(files), self.FOLDER: folder})
         return results
 
@@ -654,13 +665,15 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
 
         from .section_project import open_in_new_qgis, write_section_project
 
-        try:
-            write_section_project(post["gpkg"], post["project"], post["crs"], post["title"], post["layers"])
-            feedback.pushInfo(tr("m_msg_secproj", path=post["project"]))
-            if post["open_sec"] and not open_in_new_qgis(post["project"]):
-                feedback.pushWarning(tr("m_msg_secproj_manual", path=post["project"]))
-        except Exception as e:  # the model files are written already; report and continue
-            feedback.reportError(str(e))
+        for k, sl in enumerate(post["sheets"]):
+            try:
+                write_section_project(post["gpkg"], sl["project"], post["crs"],
+                                      tr("m_sec_project_title", name=sl["title"]), sl["layers"], post["ve"])
+                feedback.pushInfo(tr("m_msg_secproj", path=sl["project"]))
+                if k == 0 and post["open_sec"] and not open_in_new_qgis(sl["project"]):
+                    feedback.pushWarning(tr("m_msg_secproj_manual", path=sl["project"]))
+            except Exception as e:  # the model files are written already; report and continue
+                feedback.reportError(str(e))
         if post["open"]:
             QDesktopServices.openUrl(QUrl.fromLocalFile(post["viewer"]))
         try:

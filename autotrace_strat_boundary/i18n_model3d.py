@@ -199,15 +199,15 @@ for _lang, _text in (
     ("en", "<p><b>Folds</b>: along every fold axial trace the bedding contains the fold axis (trend / plunge), "
            "so the trace adds attitude constraints at the hinge.</p>"
            "<p><b>Output</b>: everything goes to one folder (prefix.gpkg, prefix_viewer.html, the ticked CAD formats, "
-           "prefix_sections.qgz). The sections open in a new QGIS window; the current project is not changed.</p>"),
+           "one prefix_section_<name>.qgz per section, each section in its own GeoPackage layers with x = distance from 0 and y = elevation). The first section opens in a new QGIS window; the current project is not changed.</p>"),
     ("zh_TW", "<p><b>褶皺</b>：褶皺樞紐處的地層面包含褶皺軸（趨向／傾沒角），因此軸跡會在樞紐加入位態條件。</p>"
-              "<p><b>輸出</b>：所有成果輸出至同一資料夾（前綴.gpkg、前綴_viewer.html、勾選的 CAD 格式、前綴_sections.qgz）；"
+              "<p><b>輸出</b>：所有成果輸出至同一資料夾（前綴.gpkg、前綴_viewer.html、勾選的 CAD 格式、每個剖面一個 前綴_section_<剖面名>.qgz，各剖面在 GeoPackage 中各自成圖層，x＝自 0 起算的距離、y＝高程）；"
               "地質剖面以新的 QGIS 視窗開啟，目前的專案不會更動。</p>"),
     ("zh_CN", "<p><b>褶皱</b>：褶皱枢纽处的地层面包含褶皱轴（趋向／倾伏角），因此轴迹会在枢纽加入产状条件。</p>"
-              "<p><b>输出</b>：所有成果输出至同一文件夹（前缀.gpkg、前缀_viewer.html、勾选的 CAD 格式、前缀_sections.qgz）；"
+              "<p><b>输出</b>：所有成果输出至同一文件夹（前缀.gpkg、前缀_viewer.html、勾选的 CAD 格式、每个剖面一个 前缀_section_<剖面名>.qgz，各剖面在 GeoPackage 中各自成图层，x＝自 0 起算的距离、y＝高程）；"
               "地质剖面以新的 QGIS 窗口打开，当前工程不会更改。</p>"),
     ("ja", "<p><b>褶曲</b>：ヒンジでは地層面が褶曲軸（トレンド／プランジ）を含むため、軸跡がヒンジの姿勢条件になります。</p>"
-           "<p><b>出力</b>：すべて同じフォルダに保存します（接頭辞.gpkg、接頭辞_viewer.html、選んだ CAD 形式、接頭辞_sections.qgz）。"
+           "<p><b>出力</b>：すべて同じフォルダに保存します（接頭辞.gpkg、接頭辞_viewer.html、選んだ CAD 形式、断面ごとの 接頭辞_section_<断面名>.qgz。各断面は GeoPackage の別レイヤで x＝0 からの距離、y＝標高）。"
            "地質断面は新しい QGIS ウィンドウで開き、現在のプロジェクトは変更しません。</p>"),
 ):
     STRINGS["help_model3d"][_lang] += _text
@@ -243,10 +243,10 @@ STRINGS.update({
                  "zh_CN": "输出文件夹（GeoPackage、3D 查看器、3D CAD、剖面工程）",
                  "ja": "出力フォルダ（GeoPackage、3D ビューア、3D CAD、断面プロジェクト）"},
     "m_prefix": {"en": "File name prefix", "zh_TW": "檔名前綴", "zh_CN": "文件名前缀", "ja": "ファイル名の接頭辞"},
-    "m_open_sec": {"en": "Open the sections in a new QGIS window (new project)",
-                   "zh_TW": "以新的 QGIS 專案（另開視窗）開啟地質剖面",
-                   "zh_CN": "以新的 QGIS 工程（另开窗口）打开地质剖面",
-                   "ja": "地質断面を新しい QGIS プロジェクト（別ウィンドウ）で開く"},
+    "m_open_sec": {"en": "Open the first section project in a new QGIS window",
+                   "zh_TW": "以新的 QGIS 視窗開啟第一個剖面專案",
+                   "zh_CN": "以新的 QGIS 窗口打开第一个剖面工程",
+                   "ja": "最初の断面プロジェクトを新しい QGIS ウィンドウで開く"},
     "m_sec_project": {"en": "Sections project (QGZ)", "zh_TW": "剖面專案（QGZ）", "zh_CN": "剖面工程（QGZ）",
                       "ja": "断面プロジェクト（QGZ）"},
     "m_sec_project_title": {"en": "Geological sections – {name}", "zh_TW": "地質剖面－{name}",
@@ -269,5 +269,12 @@ STRINGS.update({
                    "zh_CN": "保留左侧（{a} → {b}）", "ja": "左側を残す（{a} → {b}）"},
     "v_cut_right": {"en": "keep the right side ({a} → {b})", "zh_TW": "保留右側（{a} → {b}）",
                     "zh_CN": "保留右侧（{a} → {b}）", "ja": "右側を残す（{a} → {b}）"},
+})
+STRINGS.update({
+    "m_sec_coords": {
+        "en": "Section coordinates: x = distance from the section start (m), y = elevation (m) x V.E. {ve}",
+        "zh_TW": "剖面座標：x＝自剖面起點起算的距離（m），y＝高程（m）× 垂直誇大 {ve}",
+        "zh_CN": "剖面坐标：x＝自剖面起点起算的距离（m），y＝高程（m）× 垂直夸大 {ve}",
+        "ja": "断面座標：x＝断面始点からの距離（m）、y＝標高（m）× 垂直誇張 {ve}"},
 })
 # fmt: on

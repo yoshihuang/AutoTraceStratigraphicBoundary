@@ -25,7 +25,6 @@ from .. import compat
 from ..i18n import tr
 from .model_layers import style
 
-SECTION_LAYERS = ("section_labels", "section_frame", "section_faults", "section_profile", "section_units")
 
 
 def _unit_categories(layer):
@@ -44,62 +43,37 @@ def _unit_categories(layer):
     layer.setRenderer(QgsCategorizedSymbolRenderer("unit_code", cats))
 
 
-def write_section_project(gpkg, qgz_path, crs, title, layer_names=None):
-    """Write <qgz_path> with the section-sheet layers of *gpkg* and an A3 print layout."""
-    prj = QgsProject()
-    prj.setCrs(crs)
-    prj.setTitle(title)
-    prj.setFileName(qgz_path)
-    names = layer_names or SECTION_LAYERS
-    layers = []
-    for name in SECTION_LAYERS:
-        if name not in names:
-            continue
-        lyr = QgsVectorLayer("%s|layername=%s" % (gpkg, name), name, "ogr")
-        if not lyr.isValid():
-            continue
-        style(lyr, name)
-        if name == "section_units":
-            _unit_categories(lyr)
-            lyr.setName(tr("m_lyr_units"))
-        layers.append(lyr)
-    if not layers:
-        raise IOError("No section layers in %s" % gpkg)
-    prj.addMapLayers(layers)
-
-    ext = QgsRectangle()
-    ext.setNull()
-    for lyr in layers:
-        ext.combineExtentWith(lyr.extent())
-    ext.grow(max(ext.width(), ext.height()) * 0.03)
-    prj.viewSettings().setDefaultViewExtent(QgsReferencedRectangle(ext, crs))
-
-    # print layout: A3 landscape, sections + legend + title
-    layout = QgsPrintLayout(prj)
-    layout.initializeDefaults()
-    layout.setName(title)
-    mm = compat._enum("Qgis.LayoutUnit.Millimeters", "QgsUnitTypes.LayoutMillimeters")
-    page = layout.pageCollection().page(0)
-    page.setPageSize(QgsLayoutSize(420, 297, mm))
+def _label(layout, text, x, y, w, h, size, bold, mm):
     lbl = QgsLayoutItemLabel(layout)
-    lbl.setText(title)
-    f = QFont("Arial", 20)
-    f.setBold(True)
+    lbl.setText(text)
+    f = QFont("Arial", size)
+    f.setBold(bold)
     try:
         from qgis.core import QgsTextFormat
 
         fmt = QgsTextFormat()
         fmt.setFont(f)
-        fmt.setSize(20)
+        fmt.setSize(size)
         lbl.setTextFormat(fmt)
     except (ImportError, AttributeError):
         lbl.setFont(f)
-    lbl.attemptMove(QgsLayoutPoint(12, 8, mm))
-    lbl.attemptResize(QgsLayoutSize(330, 14, mm))
+    lbl.attemptMove(QgsLayoutPoint(x, y, mm))
+    lbl.attemptResize(QgsLayoutSize(w, h, mm))
     layout.addLayoutItem(lbl)
+    return lbl
+
+
+def _section_layout(prj, name, title, subtitle, layers, units_layer, ext, mm):
+    """A3 landscape layout: title, the section map, its legend."""
+    layout = QgsPrintLayout(prj)
+    layout.initializeDefaults()
+    layout.setName(name)
+    layout.pageCollection().page(0).setPageSize(QgsLayoutSize(420, 297, mm))
+    _label(layout, title, 12, 8, 330, 12, 20, True, mm)
+    _label(layout, subtitle, 12, 19, 330, 6, 9, False, mm)
     mp = QgsLayoutItemMap(layout)
-    mp.attemptMove(QgsLayoutPoint(12, 26, mm))
-    mp.attemptResize(QgsLayoutSize(330, 260, mm))
+    mp.attemptMove(QgsLayoutPoint(12, 28, mm))
+    mp.attemptResize(QgsLayoutSize(330, 258, mm))
     mp.setLayers(layers)
     mp.setExtent(ext)
     mp.setFrameEnabled(True)
@@ -113,16 +87,51 @@ def write_section_project(gpkg, qgz_path, crs, title, layer_names=None):
         lg.setSyncMode(manual)
     else:
         lg.setAutoUpdateModel(False)
-    model = lg.model()
-    root = model.rootGroup()
-    units_id = layers[-1].id() if layers[-1].name() == tr("m_lyr_units") else None
+    root = lg.model().rootGroup()
+    keep = units_layer.id() if units_layer is not None else None
     for node in list(root.findLayers()):
-        if node.layerId() != units_id:
+        if node.layerId() != keep:
             root.removeChildNode(node)
-    lg.attemptMove(QgsLayoutPoint(350, 26, mm))
+    lg.attemptMove(QgsLayoutPoint(350, 28, mm))
     layout.addLayoutItem(lg)
     prj.layoutManager().addLayout(layout)
 
+
+def write_section_project(gpkg, qgz_path, crs, title, layers, ve=1.0):
+    """Write <qgz_path> for ONE section.
+
+    layers: {"units": table, "profile": table, "faults": table, "frame": table, "labels": table} in *gpkg*.
+    Section coordinates: x = distance from the section start (0 at the left), y = elevation x V.E.
+    """
+    prj = QgsProject()
+    prj.setCrs(crs)
+    prj.setTitle(title)
+    prj.setFileName(qgz_path)
+    loaded, units_layer = [], None
+    for kind in ("labels", "frame", "faults", "profile", "units"):
+        table = layers.get(kind)
+        if not table:
+            continue
+        lyr = QgsVectorLayer("%s|layername=%s" % (gpkg, table), table, "ogr")
+        if not lyr.isValid():
+            continue
+        style(lyr, "section_" + kind)
+        if kind == "units":
+            _unit_categories(lyr)
+            lyr.setName(tr("m_lyr_units"))
+            units_layer = lyr
+        loaded.append(lyr)
+    if not loaded:
+        raise IOError("No section layers in %s" % gpkg)
+    prj.addMapLayers(loaded)
+    ext = QgsRectangle()
+    ext.setNull()
+    for lyr in loaded:
+        ext.combineExtentWith(lyr.extent())
+    ext.grow(max(ext.width(), ext.height()) * 0.04)
+    prj.viewSettings().setDefaultViewExtent(QgsReferencedRectangle(ext, crs))
+    mm = compat._enum("Qgis.LayoutUnit.Millimeters", "QgsUnitTypes.LayoutMillimeters")
+    _section_layout(prj, title, title, tr("m_sec_coords", ve="%g" % ve), loaded, units_layer, ext, mm)
     d = os.path.dirname(os.path.abspath(qgz_path))
     if not os.path.isdir(d):
         os.makedirs(d)

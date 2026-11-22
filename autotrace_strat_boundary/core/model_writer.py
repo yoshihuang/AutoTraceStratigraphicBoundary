@@ -102,6 +102,19 @@ def wkb_type(key):
 
 
 # ----------------------------------------------------------------------------- sections
+# Every section sheet has its own local system: x = distance from the section start (0 at the left edge),
+# y = elevation (multiplied by the vertical exaggeration; = elevation when V.E. = 1). Metres.
+SECTION_CRS_WKT = ('ENGCRS["Geological section (distance, elevation)",EDATUM["Section line"],CS[Cartesian,2],'
+                   'AXIS["distance (x)",east,ORDER[1],LENGTHUNIT["metre",1]],'
+                   'AXIS["elevation (y)",north,ORDER[2],LENGTHUNIT["metre",1]]]')
+
+
+def section_crs():
+    from qgis.core import QgsCoordinateReferenceSystem
+
+    return QgsCoordinateReferenceSystem.fromWkt(SECTION_CRS_WKT)
+
+
 def hex_rgb(c):
     c = (c or "#bbbbbb").lstrip("#")
     return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)) if len(c) >= 6 else (187, 187, 187)

@@ -202,7 +202,7 @@ meshes, so volumes are computed (<code>volume_m3</code>).</li>
 <div class="fig"><img src="../img/fig5_model3d.png" width="560"><br>
 <span class="cap">Fig. 5 – 3D model of the sample: plunging anticline (O1 core) offset by fault F1; terrain draped with the geological map.</span></div>
 <div class="fig"><img src="../img/fig6_section.png" width="620"><br>
-<span class="cap">Fig. 6 – Geological section A–A' of the sample (V.E. ×1), drawn below the map in QGIS.</span></div>
+<span class="cap">Fig. 6 – Geological section A–A' of the sample (V.E. ×1), x = distance from the start, y = elevation.</span></div>
 <h3>8.2 Parameters</h3>
 <table class="grid">
 <tr><th>Parameter</th><th>Meaning</th></tr>
@@ -215,7 +215,7 @@ meshes, so volumes are computed (<code>volume_m3</code>).</li>
 <tr><td>Use the unit thicknesses (advanced)</td><td>Fixes the spacing of the interfaces to <code>thick_m</code> instead of solving it from the contacts.</td></tr>
 <tr><td>Fold axial traces (trend, plunge, type, name)</td><td>At a fold hinge the bedding contains the fold axis, so points along every axial trace become attitude constraints (trend empty = along the trace, plunge empty = 0). Fold axes are drawn in the 3D viewer, marked on the sections and saved as <code>fold_axes_3d</code>.</td></tr>
 <tr><td>Map layers draped on the terrain</td><td>Default: the layers visible in QGIS. They are rendered and draped on the terrain of the 3D viewer and the OBJ file, and saved as <code>*_map.png</code> + <code>.pgw</code>.</td></tr>
-<tr><td>Output folder, file-name prefix, 3D CAD formats</td><td>Everything is written to one folder: <code>prefix.gpkg</code>, <code>prefix_viewer.html</code>, <code>prefix_sections.qgz</code>, <code>prefix_map.png</code> + <code>.pgw</code> and the ticked CAD formats: DXF (polyface meshes, one layer per unit), OBJ + MTL (colours, textured terrain), STL (one file per unit).</td></tr>
+<tr><td>Output folder, file-name prefix, 3D CAD formats</td><td>Everything is written to one folder: <code>prefix.gpkg</code>, <code>prefix_viewer.html</code>, <code>prefix_section_&lt;name&gt;.qgz</code> (one per section), <code>prefix_map.png</code> + <code>.pgw</code> and the ticked CAD formats: DXF (polyface meshes, one layer per unit), OBJ + MTL (colours, textured terrain), STL (one file per unit).</td></tr>
 </table>
 <h3>8.3 Outputs</h3>
 <table class="grid">
@@ -224,10 +224,10 @@ meshes, so volumes are computed (<code>volume_m3</code>).</li>
 <tr><td>horizons_3d / faults_3d / terrain_3d</td><td>Interfaces between units, fault planes, ground surface coloured by unit</td></tr>
 <tr><td>fold_axes_3d</td><td>Fold axial traces draped on the terrain</td></tr>
 <tr><td>section_fences_3d</td><td>Sections as vertical 3D panels on the section lines (for the QGIS 3D map view)</td></tr>
-<tr><td>section_units / section_profile / section_faults / section_frame / section_labels</td><td>The section sheet, placed below the map in the map CRS (x = distance, y = elevation × V.E.), ready for a print layout</td></tr>
+<tr><td>section_&lt;name&gt;_units / _profile / _faults / _frame / _labels</td><td>The sheet of each section in its own layers; local section coordinates: x = distance from the section start (0), y = elevation × V.E.</td></tr>
 <tr><td>section_lines / model_info</td><td>Section lines on the map; parameters, interface levels and warnings</td></tr>
 </table>
-<p><b>Sections project</b> – <code>prefix_sections.qgz</code> contains only the section sheet (unit polygons with a legend, ground profile, faults, fold marks, frame, ticks and labels) and an A3 print layout ready for PDF export. It opens in a separate QGIS window, so the current project is neither closed nor changed.</p>
+<p><b>Section projects</b> – every section line gets its own layers in the GeoPackage (<code>section_&lt;name&gt;_units / _profile / _faults / _frame / _labels</code>, e.g. <code>section_A_A_units</code>) and its own project <code>prefix_section_&lt;name&gt;.qgz</code>, which can be opened separately. Each section uses its own coordinates: <b>x = distance from the section start (0 at the left edge), y = elevation</b> (× V.E. when it is not 1), so the left end of the ground line lies at the ground elevation of the section start. A project contains only that section (unit polygons with a legend, ground profile, faults, fold marks, frame, ticks and labels) and an A3 print layout ready for PDF export. The first one opens in a separate QGIS window, so the current project is neither closed nor changed.</p>
 <p><b>3D viewer</b> – <code>prefix_viewer.html</code> (three.js, works offline): unit switches, transparency, vertical exaggeration, east / north cuts and the <b>section cut</b> – choose a section and the side to keep; the model is cut along the section line, the section drawing caps the cut and the view turns to it. Add <code>#cut=0:L</code> (or <code>0:R</code>) to the address to open with a cut, <code>#nopanel</code> for a clean screenshot.</p>
 <div class="fig"><img src="../img/fig7_section_cut.png" width="560"><br>
 <span class="cap">Fig. 7 – Section cut in the 3D viewer: the model is cut along A–A' and the section caps the cut.</span></div>

@@ -184,7 +184,7 @@ DEM 上に置き、各境界は f の等値面です。<b>姿勢</b>（傾斜・
 <div class="fig"><img src="../img/fig5_model3d.png" width="560"><br>
 <span class="cap">図 5－サンプルの 3D 地質モデル：断層 F1 で変位したプランジ背斜（核部 O1）。地形面に地質図を貼っています。</span></div>
 <div class="fig"><img src="../img/fig6_section.png" width="620"><br>
-<span class="cap">図 6－サンプルの地質断面 A–A'（垂直誇張 ×1）。QGIS で地質図の下に描かれます。</span></div>
+<span class="cap">図 6－サンプルの地質断面 A–A'（垂直誇張 ×1）。x＝始点からの距離、y＝標高。</span></div>
 <h3>8.2 パラメータ</h3>
 <table class="grid">
 <tr><th>パラメータ</th><th>説明</th></tr>
@@ -197,7 +197,7 @@ DEM 上に置き、各境界は f の等値面です。<b>姿勢</b>（傾斜・
 <tr><td>層厚を境界面の間隔に使う（詳細）</td><td>境界から求めず、<code>thick_m</code> で境界面の間隔を固定します。</td></tr>
 <tr><td>褶曲軸跡（トレンド、プランジ、種類、名称）</td><td>ヒンジでは地層面が褶曲軸を含むため、軸跡上の点が姿勢条件になります（トレンド空欄＝軸跡の方向、プランジ空欄＝0）。褶曲軸は 3D ビューアに表示し、断面に記号を付け、<code>fold_axes_3d</code> に保存します。</td></tr>
 <tr><td>地形面に貼る地図レイヤ</td><td>既定は QGIS で表示中のレイヤ。描画して 3D ビューアと OBJ の地形面に貼り、<code>*_map.png</code>＋<code>.pgw</code> として保存します。</td></tr>
-<tr><td>出力フォルダ、接頭辞、3D CAD 形式</td><td>すべて同じフォルダに出力します：<code>接頭辞.gpkg</code>、<code>接頭辞_viewer.html</code>、<code>接頭辞_sections.qgz</code>、<code>接頭辞_map.png</code>＋<code>.pgw</code>、およびチェックした CAD 形式：DXF（polyface mesh、地層ごとのレイヤ）、OBJ + MTL（色・地形テクスチャ付き）、STL（地層ごと）。</td></tr>
+<tr><td>出力フォルダ、接頭辞、3D CAD 形式</td><td>すべて同じフォルダに出力します：<code>接頭辞.gpkg</code>、<code>接頭辞_viewer.html</code>、<code>接頭辞_section_&lt;断面名&gt;.qgz</code>（断面ごと）、<code>接頭辞_map.png</code>＋<code>.pgw</code>、およびチェックした CAD 形式：DXF（polyface mesh、地層ごとのレイヤ）、OBJ + MTL（色・地形テクスチャ付き）、STL（地層ごと）。</td></tr>
 </table>
 <h3>8.3 出力</h3>
 <table class="grid">
@@ -206,10 +206,10 @@ DEM 上に置き、各境界は f の等値面です。<b>姿勢</b>（傾斜・
 <tr><td>horizons_3d／faults_3d／terrain_3d</td><td>地層境界面、断層面、地層で色分けした地形面</td></tr>
 <tr><td>fold_axes_3d</td><td>地形面に沿わせた褶曲軸跡</td></tr>
 <tr><td>section_fences_3d</td><td>断面線上に立てた 3D 断面（QGIS の 3D マップビュー用）</td></tr>
-<tr><td>section_units／section_profile／section_faults／section_frame／section_labels</td><td>地図座標で地質図の下に配置した断面図（x＝距離、y＝標高×垂直誇張）。印刷レイアウトにそのまま使えます</td></tr>
+<tr><td>section_&lt;断面名&gt;_units／_profile／_faults／_frame／_labels</td><td>断面ごとのレイヤに分けた断面図。断面座標：x＝始点からの距離（0 から）、y＝標高×垂直誇張</td></tr>
 <tr><td>section_lines／model_info</td><td>地図上の断面線；パラメータ、境界面の値、警告</td></tr>
 </table>
-<p><b>断面プロジェクト</b>：<code>接頭辞_sections.qgz</code> は地質断面図（凡例付きの地層、地形線、断層、褶曲記号、図枠、目盛、注記）と A3 印刷レイアウトだけを含み、そのまま PDF 出力できます。別の QGIS ウィンドウで開くため、現在のプロジェクトは閉じず変更もしません。</p>
+<p><b>断面プロジェクト</b>：断面線ごとに GeoPackage 内の別レイヤ（<code>section_&lt;断面名&gt;_units／_profile／_faults／_frame／_labels</code>、例：<code>section_A_A_units</code>）と別プロジェクト <code>接頭辞_section_&lt;断面名&gt;.qgz</code> に保存し、個別に開いて確認できます。各断面は独自の座標を使います：<b>x＝断面始点からの距離（左端が 0）、y＝標高</b>（垂直誇張が 1 でない場合は倍率を掛けた値）。地形線の左端の y は断面始点の地表標高です。各プロジェクトはその断面の地質断面図（凡例付きの地層、地形線、断層、褶曲記号、図枠、目盛、注記）と A3 印刷レイアウトだけを含み、そのまま PDF 出力できます。最初の断面プロジェクトを別の QGIS ウィンドウで開くため、現在のプロジェクトは閉じず変更もしません。</p>
 <p><b>3D ビューア</b>：<code>接頭辞_viewer.html</code>（three.js、オフライン可）で地層の表示切替、透明度、垂直誇張、東西／南北の切断、そして<b>断面で切断</b>ができます。断面と残す側を選ぶと断面線に沿ってモデルを切り、切り口に断面図を表示して視点を向けます。アドレスに <code>#cut=0:L</code>（または <code>0:R</code>）を付けると切断した状態で、<code>#nopanel</code> を付けるとパネルなしで開きます。</p>
 <div class="fig"><img src="../img/fig7_section_cut.png" width="560"><br>
 <span class="cap">図 7－3D ビューアの断面切断：モデルを A–A' に沿って切り、切り口に断面図を表示。</span></div>
