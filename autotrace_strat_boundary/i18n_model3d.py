@@ -198,17 +198,17 @@ STRINGS.update({
 for _lang, _text in (
     ("en", "<p><b>Folds</b>: along every fold axial trace the bedding contains the fold axis (trend / plunge), "
            "so the trace adds attitude constraints at the hinge.</p>"
-           "<p><b>Files</b>: choose the GeoPackage and, separately, the DXF, OBJ, STL and viewer files. "
-           "Outputs left as temporary files are written next to the GeoPackage.</p>"),
+           "<p><b>Output</b>: everything goes to one folder (prefix.gpkg, prefix_viewer.html, the ticked CAD formats, "
+           "prefix_sections.qgz). The sections open in a new QGIS window; the current project is not changed.</p>"),
     ("zh_TW", "<p><b>褶皺</b>：褶皺樞紐處的地層面包含褶皺軸（趨向／傾沒角），因此軸跡會在樞紐加入位態條件。</p>"
-              "<p><b>檔案</b>：可分別指定 GeoPackage 與 DXF、OBJ、STL、3D 檢視器的檔名與位置；"
-              "保留為暫存檔者會存在 GeoPackage 同一資料夾。</p>"),
+              "<p><b>輸出</b>：所有成果輸出至同一資料夾（前綴.gpkg、前綴_viewer.html、勾選的 CAD 格式、前綴_sections.qgz）；"
+              "地質剖面以新的 QGIS 視窗開啟，目前的專案不會更動。</p>"),
     ("zh_CN", "<p><b>褶皱</b>：褶皱枢纽处的地层面包含褶皱轴（趋向／倾伏角），因此轴迹会在枢纽加入产状条件。</p>"
-              "<p><b>文件</b>：可分别指定 GeoPackage 与 DXF、OBJ、STL、3D 查看器的文件名与位置；"
-              "保留为临时文件者会存在 GeoPackage 同一文件夹。</p>"),
+              "<p><b>输出</b>：所有成果输出至同一文件夹（前缀.gpkg、前缀_viewer.html、勾选的 CAD 格式、前缀_sections.qgz）；"
+              "地质剖面以新的 QGIS 窗口打开，当前工程不会更改。</p>"),
     ("ja", "<p><b>褶曲</b>：ヒンジでは地層面が褶曲軸（トレンド／プランジ）を含むため、軸跡がヒンジの姿勢条件になります。</p>"
-           "<p><b>ファイル</b>：GeoPackage と DXF・OBJ・STL・3D ビューアの保存先を個別に指定できます。"
-           "一時ファイルのままの出力は GeoPackage と同じフォルダに保存します。</p>"),
+           "<p><b>出力</b>：すべて同じフォルダに保存します（接頭辞.gpkg、接頭辞_viewer.html、選んだ CAD 形式、接頭辞_sections.qgz）。"
+           "地質断面は新しい QGIS ウィンドウで開き、現在のプロジェクトは変更しません。</p>"),
 ):
     STRINGS["help_model3d"][_lang] += _text
 STRINGS.update({
@@ -235,4 +235,39 @@ for _lang, _text in (
            "位置情報付き PNG（*_map.png＋.pgw）としても保存します。</p>"),
 ):
     STRINGS["help_model3d"][_lang] += _text
+
+# 1.3: one output folder, sections in a new project, section cut in the viewer
+STRINGS.update({
+    "m_folder": {"en": "Output folder (GeoPackage, 3D viewer, 3D CAD, sections project)",
+                 "zh_TW": "輸出資料夾（GeoPackage、3D 檢視器、3D CAD、剖面專案）",
+                 "zh_CN": "输出文件夹（GeoPackage、3D 查看器、3D CAD、剖面工程）",
+                 "ja": "出力フォルダ（GeoPackage、3D ビューア、3D CAD、断面プロジェクト）"},
+    "m_prefix": {"en": "File name prefix", "zh_TW": "檔名前綴", "zh_CN": "文件名前缀", "ja": "ファイル名の接頭辞"},
+    "m_open_sec": {"en": "Open the sections in a new QGIS window (new project)",
+                   "zh_TW": "以新的 QGIS 專案（另開視窗）開啟地質剖面",
+                   "zh_CN": "以新的 QGIS 工程（另开窗口）打开地质剖面",
+                   "ja": "地質断面を新しい QGIS プロジェクト（別ウィンドウ）で開く"},
+    "m_sec_project": {"en": "Sections project (QGZ)", "zh_TW": "剖面專案（QGZ）", "zh_CN": "剖面工程（QGZ）",
+                      "ja": "断面プロジェクト（QGZ）"},
+    "m_sec_project_title": {"en": "Geological sections – {name}", "zh_TW": "地質剖面－{name}",
+                            "zh_CN": "地质剖面－{name}", "ja": "地質断面－{name}"},
+    "m_msg_secproj": {"en": "Sections project written: {path}", "zh_TW": "已寫出剖面專案：{path}",
+                      "zh_CN": "已写出剖面工程：{path}", "ja": "断面プロジェクトを保存しました：{path}"},
+    "m_msg_secproj_manual": {"en": "Could not start a new QGIS window; open {path} yourself.",
+                             "zh_TW": "無法另開 QGIS 視窗，請自行開啟 {path}。",
+                             "zh_CN": "无法另开 QGIS 窗口，请自行打开 {path}。",
+                             "ja": "新しい QGIS ウィンドウを起動できません。{path} を開いてください。"},
+    "m_msg_locked": {"en": "Cannot overwrite {path} (is it open in QGIS?). Choose another folder or prefix.",
+                     "zh_TW": "無法覆寫 {path}（是否正在 QGIS 中開啟？）。請改用其他資料夾或檔名前綴。",
+                     "zh_CN": "无法覆盖 {path}（是否正在 QGIS 中打开？）。请改用其他文件夹或文件名前缀。",
+                     "ja": "{path} を上書きできません（QGIS で開いていませんか？）。別のフォルダか接頭辞を指定してください。"},
+    "m_lyr_units": {"en": "Section units", "zh_TW": "剖面地層", "zh_CN": "剖面地层", "ja": "断面の地層"},
+    "m_legend": {"en": "Legend", "zh_TW": "圖例", "zh_CN": "图例", "ja": "凡例"},
+    "v_cut_sec": {"en": "Section cut", "zh_TW": "剖面切割", "zh_CN": "剖面切割", "ja": "断面で切断"},
+    "v_cut_none": {"en": "(none)", "zh_TW": "（不切割）", "zh_CN": "（不切割）", "ja": "（切断しない）"},
+    "v_cut_left": {"en": "keep the left side ({a} → {b})", "zh_TW": "保留左側（{a} → {b}）",
+                   "zh_CN": "保留左侧（{a} → {b}）", "ja": "左側を残す（{a} → {b}）"},
+    "v_cut_right": {"en": "keep the right side ({a} → {b})", "zh_TW": "保留右側（{a} → {b}）",
+                    "zh_CN": "保留右侧（{a} → {b}）", "ja": "右側を残す（{a} → {b}）"},
+})
 # fmt: on

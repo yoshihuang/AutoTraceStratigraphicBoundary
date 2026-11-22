@@ -161,7 +161,10 @@ class AutoTraceStratBoundaryPlugin(object):
 
     def run_geology(self):
         params = {}
-        bnd = _find_layer(GEOM_LINE, ["predicted", "boundary", "預判", "预判", "予測"], ("unit_u", "unit_d"))
+        # prefer the edited lines (修正 / edited) over the raw predictions
+        bnd = _find_layer(GEOM_LINE, ["修正", "修編", "edited", "编辑"], ("unit_u", "unit_d"))
+        if bnd is None:
+            bnd = _find_layer(GEOM_LINE, ["predicted", "boundary", "預判", "预判", "予測"], ("unit_u", "unit_d"))
         faults = _find_layer(GEOM_LINE, ["faults", "fault", "斷層", "断层"])
         bedding = _find_layer(GEOM_POINT, ["bedding"], ("unit_code",))
         geology = _find_layer(GEOM_POLYGON, ["geology"], ("unit_code",))

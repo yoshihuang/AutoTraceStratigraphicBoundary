@@ -18,7 +18,9 @@ from qgis.core import (
     QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSource,
     QgsProcessingParameterField,
-    QgsProcessingParameterFileDestination,
+    QgsProcessingParameterFolderDestination,
+    QgsProcessingParameterString,
+    QgsProcessingOutputFile,
     QgsProcessingParameterNumber,
     QgsProcessingParameterRasterLayer,
     QgsProcessingParameterVectorLayer,
@@ -99,11 +101,14 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
     FO_TYPE = "FOLD_TYPE_FIELD"
     FO_NAME = "FOLD_NAME_FIELD"
     OPEN = "OPEN_VIEWER"
+    OPEN_SEC = "OPEN_SECTIONS"
+    FOLDER = "OUTPUT_FOLDER"
+    PREFIX = "FILE_PREFIX"
+    CAD = "CAD_FORMATS"
     OUTPUT = "OUTPUT_GPKG"
-    OUT_DXF = "OUTPUT_DXF"
-    OUT_OBJ = "OUTPUT_OBJ"
-    OUT_STL = "OUTPUT_STL"
-    OUT_HTML = "OUTPUT_VIEWER"
+    VIEWER = "VIEWER_HTML"
+    SEC_PROJECT = "SECTIONS_PROJECT"
+    CAD_OPTIONS = ["DXF (polyface mesh)", "OBJ + MTL", "STL"]
     FILES = "CAD_FILES"
     DRAPE = "DRAPE_LAYERS"
     DRAPE_PX = "DRAPE_RESOLUTION"
@@ -187,16 +192,14 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
         P(QgsProcessingParameterMultipleLayers(self.DRAPE, tr("m_drape"), compat.TYPE_MAP_LAYER, optional=True))
         P(_advanced(QgsProcessingParameterNumber(self.DRAPE_PX, tr("m_drape_px"), compat.NUM_INT, 2048,
                                                  minValue=256, maxValue=8192)))
-        P(QgsProcessingParameterFileDestination(self.OUTPUT, tr("m_out"), "GeoPackage (*.gpkg)"))
-        P(QgsProcessingParameterFileDestination(self.OUT_DXF, tr("m_out_dxf"), "AutoCAD DXF (*.dxf)", optional=True,
-                                                createByDefault=True))
-        P(QgsProcessingParameterFileDestination(self.OUT_OBJ, tr("m_out_obj"), "Wavefront OBJ (*.obj)", optional=True,
-                                                createByDefault=True))
-        P(QgsProcessingParameterFileDestination(self.OUT_STL, tr("m_out_stl"), "STL (*.stl)", optional=True,
-                                                createByDefault=False))
-        P(QgsProcessingParameterFileDestination(self.OUT_HTML, tr("m_out_html"), "HTML (*.html)", optional=True,
-                                                createByDefault=True))
+        P(QgsProcessingParameterFolderDestination(self.FOLDER, tr("m_folder")))
+        P(QgsProcessingParameterString(self.PREFIX, tr("m_prefix"), "model3d"))
+        P(QgsProcessingParameterEnum(self.CAD, tr("m_cad"), self.CAD_OPTIONS, True, [0, 1], optional=True))
+        P(QgsProcessingParameterBoolean(self.OPEN_SEC, tr("m_open_sec"), True))
         P(QgsProcessingParameterBoolean(self.OPEN, tr("m_open"), True))
+        self.addOutput(QgsProcessingOutputFile(self.OUTPUT, tr("m_out")))
+        self.addOutput(QgsProcessingOutputFile(self.VIEWER, tr("m_out_html")))
+        self.addOutput(QgsProcessingOutputFile(self.SEC_PROJECT, tr("m_sec_project")))
         self.addOutput(QgsProcessingOutputString(self.FILES, tr("m_files")))
 
     # ------------------------------------------------------------------ helpers
@@ -242,23 +245,6 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
             if c is not None:
                 self._drape.append(c)
         return True
-
-    def _dest(self, parameters, key, context, fallback, ext):
-        """Output path of a file destination: '' = skipped; temporary files go next to the GeoPackage."""
-        if parameters.get(key) is None:
-            return ""
-        path = self.parameterAsFileOutput(parameters, key, context)
-        if not path:
-            return ""
-        tmp = os.path.normcase(os.path.abspath(QgsProcessingUtils.tempFolder()))
-        if os.path.normcase(os.path.abspath(path)).startswith(tmp):
-            path = fallback
-        if not path.lower().endswith(ext):
-            path = os.path.splitext(path)[0] + ext
-        d = os.path.dirname(os.path.abspath(path))
-        if not os.path.isdir(d):
-            os.makedirs(d)
-        return path
 
     # ------------------------------------------------------------------ main
     def processAlgorithm(self, parameters, context, feedback):  # noqa: N802
@@ -442,13 +428,17 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
         feedback.setProgress(70)
 
         # ------------------------------------------------------------ GeoPackage
-        out_path = self.parameterAsFileOutput(parameters, self.OUTPUT, context)
-        if not out_path.lower().endswith(".gpkg"):
-            out_path += ".gpkg"
-        if not os.path.isdir(os.path.dirname(os.path.abspath(out_path))):
-            os.makedirs(os.path.dirname(os.path.abspath(out_path)))
-        root = os.path.splitext(out_path)[0]
-        W = mw.GpkgWriter(out_path, crs)
+        folder = self.parameterAsString(parameters, self.FOLDER, context)
+        folder = self.parameterAsFileOutput(parameters, self.FOLDER, context) or folder
+        prefix = export3d.safe_name(self.parameterAsString(parameters, self.PREFIX, context) or "model3d")
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        root = os.path.join(folder, prefix)
+        out_path = root + ".gpkg"
+        try:
+            W = mw.GpkgWriter(out_path, crs)
+        except OSError:
+            raise QgsProcessingException(tr("m_msg_locked", path=out_path))
         ucol = [u.color for u in units]
         rows = []
         for ui, (v, f) in solids.items():
@@ -520,7 +510,8 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
             lb_rows += [(QgsGeometry.fromPointXY(p), [sec.name, t, k]) for p, t, k in labels]
             cx0, cy0 = (extent[0] + extent[2]) / 2.0, (extent[1] + extent[3]) / 2.0
             u_of = [float(c) / sec.length for c in sec.cum]
-            viewer_secs.append(dict(name=sec.name, ztop=res["ztop"], zbase=res["zbase"],
+            viewer_secs.append(dict(name=sec.name, title=sec.title, start=sec.start, end=sec.end,
+                                    ztop=res["ztop"], zbase=res["zbase"],
                                     pts=[[float(p[0] - cx0), float(p[1] - cy0), u] for p, u in zip(sec.pts, u_of)],
                                     img=mw.section_image(res, ucol)))
             y_cursor = sy0 - gap
@@ -593,26 +584,15 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
             terrain_mesh["uv"] = np.column_stack([(tv[:, 0] - extent[0]) / (extent[2] - extent[0]),
                                                   (tv[:, 1] - extent[1]) / (extent[3] - extent[1])])
             terrain_mesh["color"] = "#ffffff"
-        p_dxf = self._dest(parameters, self.OUT_DXF, context, root + ".dxf", ".dxf")
-        if p_dxf:
-            files += export3d.write_dxf(p_dxf, meshes, polylines)
-            results[self.OUT_DXF] = p_dxf
-        p_obj = self._dest(parameters, self.OUT_OBJ, context, root + ".obj", ".obj")
-        if p_obj:
+        cad = self.parameterAsEnums(parameters, self.CAD, context)
+        if 0 in cad:
+            files += export3d.write_dxf(root + ".dxf", meshes, polylines)
+        if 1 in cad:
             if map_png:
-                tex = os.path.splitext(p_obj)[0] + "_map.png"
-                if os.path.abspath(tex) != os.path.abspath(map_png):
-                    import shutil
-
-                    shutil.copyfile(map_png, tex)
-                    files.append(tex)
-                terrain_mesh["texture"] = tex
-            files += export3d.write_obj(p_obj, meshes)
-            results[self.OUT_OBJ] = p_obj
-        p_stl = self._dest(parameters, self.OUT_STL, context, root + ".stl", ".stl")
-        if p_stl:
-            files += export3d.write_stl(p_stl, [m for m in meshes if m["name"].startswith("unit_")])
-            results[self.OUT_STL] = p_stl
+                terrain_mesh["texture"] = map_png
+            files += export3d.write_obj(root + ".obj", meshes)
+        if 2 in cad:
+            files += export3d.write_stl(root + ".stl", [m for m in meshes if m["name"].startswith("unit_")])
         feedback.setProgress(92)
 
         # ------------------------------------------------------------ viewer
@@ -643,36 +623,44 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
             extent=[extent[0] - center[0], extent[1] - center[1], extent[2] - center[0], extent[3] - center[1],
                     zbase, topo.max],
             text={k: tr("v_" + k) for k in ("h_units", "h_layers", "h_ve", "h_cut", "h_view", "top", "iso", "shot",
-                                             "hint", "terrain", "sections", "faults", "horizons", "folds", "map")},
+                                             "hint", "terrain", "sections", "faults", "horizons", "folds", "map",
+                                             "cut_sec", "cut_none", "cut_left", "cut_right")},
         )
-        viewer = self._dest(parameters, self.OUT_HTML, context, root + "_viewer.html", ".html")
-        if viewer:
-            mw.write_viewer(viewer, data)
-            files.append(viewer)
-            results[self.OUT_HTML] = viewer
+        viewer = root + "_viewer.html"
+        mw.write_viewer(viewer, data)
+        files.append(viewer)
         feedback.setProgress(100)
         log(tr("m_msg_done", s="%.0f" % (time.time() - t_start), n=len(files)))
         for f in files:
             log("  " + f)
-        self._post = dict(gpkg=out_path, viewer=viewer,
-                          open=bool(viewer) and self.parameterAsBool(parameters, self.OPEN, context),
-                          layers=list(W.layers), files=files)
-        results.update({self.OUTPUT: out_path, self.FILES: ";".join(files)})
+        sec_project = root + "_sections.qgz"
+        files.append(sec_project)
+        self._post = dict(gpkg=out_path, viewer=viewer, folder=folder, project=sec_project, crs=crs,
+                          title=tr("m_sec_project_title", name=prefix), layers=list(W.layers), files=files,
+                          open=self.parameterAsBool(parameters, self.OPEN, context),
+                          open_sec=self.parameterAsBool(parameters, self.OPEN_SEC, context))
+        results.update({self.OUTPUT: out_path, self.VIEWER: viewer, self.SEC_PROJECT: sec_project,
+                        self.FILES: ";".join(files), self.FOLDER: folder})
         return results
 
     def postProcessAlgorithm(self, context, feedback):  # noqa: N802
+        """Main thread. The current project is left untouched: the sections are written to a new
+        project file and opened in a separate QGIS window; the 3D model opens in the HTML viewer."""
         post = getattr(self, "_post", None)
         if not post:
             return {}
-        from .model_layers import load_model_layers
-
-        try:
-            load_model_layers(post["gpkg"], context.project() or None, post["layers"])
-        except Exception as e:  # never fail the run because of styling
-            feedback.reportError(str(e))
         from qgis.PyQt.QtCore import QUrl
         from qgis.PyQt.QtGui import QDesktopServices
 
+        from .section_project import open_in_new_qgis, write_section_project
+
+        try:
+            write_section_project(post["gpkg"], post["project"], post["crs"], post["title"], post["layers"])
+            feedback.pushInfo(tr("m_msg_secproj", path=post["project"]))
+            if post["open_sec"] and not open_in_new_qgis(post["project"]):
+                feedback.pushWarning(tr("m_msg_secproj_manual", path=post["project"]))
+        except Exception as e:  # the model files are written already; report and continue
+            feedback.reportError(str(e))
         if post["open"]:
             QDesktopServices.openUrl(QUrl.fromLocalFile(post["viewer"]))
         try:
@@ -682,11 +670,11 @@ class BuildModel3DAlgorithm(QgsProcessingAlgorithm):
         if iface is not None and iface.messageBar() is not None:
             from qgis.PyQt.QtWidgets import QPushButton
 
-            folder = os.path.dirname(os.path.abspath(post["gpkg"]))
+            folder = post["folder"]
             bar = iface.messageBar()
             widget = bar.createMessage(tr("alg_model3d"), tr("m_done_bar", n=len(post["files"]), folder=folder))
             btn = QPushButton(tr("m_open_folder"), widget)
             btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(folder)))
             widget.layout().addWidget(btn)
-            bar.pushWidget(widget, compat._enum("Qgis.MessageLevel.Success", "Qgis.Success"), 15)
+            bar.pushWidget(widget, compat._enum("Qgis.MessageLevel.Success", "Qgis.Success"), 20)
         return {}

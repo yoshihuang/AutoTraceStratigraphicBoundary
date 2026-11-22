@@ -42,6 +42,8 @@
   <h2 id="h_cut"></h2>
   <div class="rng"><input id="cutX" type="range" min="0" max="100" value="100"><span id="cutXV">E</span></div>
   <div class="rng"><input id="cutY" type="range" min="0" max="100" value="100"><span id="cutYV">N</span></div>
+  <div class="sub" id="cutSecLbl" style="margin:6px 0 2px"></div>
+  <select id="cutSec" style="width:100%;font:inherit;padding:3px;border:1px solid var(--line);border-radius:6px"></select>
   <h2 id="h_view"></h2>
   <button id="bTop"></button><button id="bIso"></button><button id="bShot"></button>
   <div id="warn"></div>
@@ -80,7 +82,8 @@
   const ext = DATA.extent; // relative: [x0, y0, x1, y1, zbase, ztop]
   const clipX = new THREE.Plane(new THREE.Vector3(-1, 0, 0), ext[2]);
   const clipY = new THREE.Plane(new THREE.Vector3(0, 0, 1), -ext[1]);   // scene z = -y
-  const clips = [clipX, clipY];
+  const clipS = new THREE.Plane(new THREE.Vector3(1, 0, 0), 1e9);    // section cut (inactive)
+  const clips = [clipX, clipY, clipS];
 
   function b64(s, Type) {
     const bin = atob(s), buf = new ArrayBuffer(bin.length), u8 = new Uint8Array(buf);
@@ -193,6 +196,35 @@
   bindRange('cutX', v => v + '%', v => { clipX.constant = ext[0] + (ext[2] - ext[0]) * v / 100 + 1e-3; });   // x <= cut
   bindRange('cutY', v => v + '%', v => { clipY.constant = ext[1] + (ext[3] - ext[1]) * v / 100 + 1e-3; });   // y <= cut
 
+  // ---- section cut: keep one side of the vertical plane through a section line; the section is the cut face
+  $('cutSecLbl').textContent = T.cut_sec;
+  const sel = $('cutSec');
+  const addOpt = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+  addOpt('', T.cut_none);
+  DATA.sections.forEach((s, i) => {
+    const t = s.title || s.name;
+    addOpt(i + ':L', t + ' · ' + T.cut_left.replace('{a}', s.start || 'A').replace('{b}', s.end || "A'"));
+    addOpt(i + ':R', t + ' · ' + T.cut_right.replace('{a}', s.start || 'A').replace('{b}', s.end || "A'"));
+  });
+  const secVisibleBox = () => [...lBox.querySelectorAll('input')].find(i => i.parentNode.lastChild.textContent === T.sections);
+  sel.onchange = () => {
+    const v = sel.value;
+    groups.section.forEach(m => { m.visible = false; });
+    if (!v) { clipS.normal.set(1, 0, 0); clipS.constant = 1e9; const b = secVisibleBox(); if (b && b.checked) groups.section.forEach(m => m.visible = true); return; }
+    const [i, side] = v.split(':'); const s = DATA.sections[+i];
+    const a = s.pts[0], b = s.pts[s.pts.length - 1];
+    let nx = -(b[1] - a[1]), ny = b[0] - a[0];                  // left normal in map coordinates
+    const n = Math.hypot(nx, ny) || 1; nx /= n; ny /= n;
+    if (side === 'R') { nx = -nx; ny = -ny; }
+    clipS.normal.set(nx, 0, -ny);                              // scene: (x, z, -y)
+    clipS.constant = -(nx * a[0] + ny * a[1]) + 1e-3;
+    groups.section[+i].visible = true;                          // the section drawing caps the cut
+    // look at the cut face from the removed side
+    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    camera.position.set(mx - nx * L * 1.1, (ext[4] + ext[5]) / 2 + L * 0.35, -(my - ny * L * 1.1));
+    controls.target.set(mx, (ext[4] + ext[5]) / 2, -my); controls.update();
+  };
+
   const size = Math.max(ext[2] - ext[0], ext[3] - ext[1]);
   const cx = (ext[0] + ext[2]) / 2, cy = (ext[1] + ext[3]) / 2, cz = (ext[4] + ext[5]) / 2;
   function iso() { camera.position.set(cx - size * 1.25, cz + size * 1.05, -cy + size * 1.55); controls.target.set(cx, cz, -cy); controls.update(); }
@@ -200,6 +232,8 @@
   $('bIso').onclick = iso; $('bTop').onclick = top;
   $('bShot').onclick = () => { renderer.render(scene, camera); const a = document.createElement('a'); a.download = 'model3d.png'; a.href = renderer.domElement.toDataURL('image/png'); a.click(); };
   iso();
+  const mCut = /cut=([0-9]+:[LR])/.exec(location.hash);          // e.g. viewer.html#cut=0:L
+  if (mCut) { sel.value = mCut[1]; sel.onchange(); }
 
   function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   window.addEventListener('resize', resize); resize();

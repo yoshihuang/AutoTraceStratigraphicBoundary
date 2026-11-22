@@ -130,7 +130,7 @@ rule), <code>unit_code_u</code> (upper unit), <code>unit_code_d</code> (lower un
 <ol>
 <li><b>Plugins ▸ AutoTrace Stratigraphic Boundary ▸ Download sample project and data…</b> – choose a folder. The
 project <i>C19.qgz</i> (oblique-slip fault displacing a plunging fold, EPSG:3826) with
-<i>c19_….gpkg</i> and <i>DEM.tif</i> is saved there and can be opened at once.</li>
+<i>c19_….gpkg</i> and <i>DEM.tif</i> is saved there and can be opened at once. The sample also contains the result of every step: <i>地層邊界預判線</i> (predicted lines), <i>地層預判界線(修正後)</i> (edited lines), <i>geology_Interpolation</i> (generated geology) and <i>Checking_Point</i> (check point), so each tool can be tried directly.</li>
 <li><b>Trace predicted boundary lines…</b> – the dialog is pre-filled with <i>Stratigraphic_Boundary</i>,
 <i>DEM</i> and <i>faults</i>. Click <b>Run</b>. The temporary layer <i>Predicted boundary lines</i> is added, coloured by
 upper unit and labelled “upper/lower”.</li>
@@ -140,7 +140,7 @@ Then save the layer to a GeoPackage (right-click ▸ <i>Make Permanent</i>), bec
 <li><b>Build geological map…</b> – choose the edited lines and the faults. For the sample the extent (DEM),
 <i>bedding</i> (unit sample points) and <i>geology</i> (template) are pre-filled. Click <b>Run</b>.</li>
 <li>Check the <code>qa</code> field and the <i>Unclosed boundary ends</i> layer, fix the lines, and run step 4 again if needed.</li>
-<li><b>Build 3D geological model and sections…</b> – the dialog is pre-filled with <i>geology</i>, <i>DEM</i>, <i>faults</i>, <i>bedding</i>, <i>Stratigraphic_Boundary</i> and <i>section_line</i>. Choose the output GeoPackage and click <b>Run</b>. The section sheet appears below the map and the 3D viewer opens in the web browser.</li>
+<li><b>Build 3D geological model and sections…</b> – the dialog is pre-filled with the geology, <i>DEM</i>, <i>faults</i>, <i>fold_axes</i>, <i>bedding</i>, <i>Stratigraphic_Boundary</i>, <i>section_line</i> and the visible layers to drape. Choose an <b>output folder</b> and a file-name prefix and click <b>Run</b>. The sections open in a <b>new QGIS window</b> (your project stays open and unchanged) and the 3D model opens in the web browser.</li>
 </ol>
 
 <h2 id="params">6. Parameters</h2>
@@ -215,7 +215,7 @@ meshes, so volumes are computed (<code>volume_m3</code>).</li>
 <tr><td>Use the unit thicknesses (advanced)</td><td>Fixes the spacing of the interfaces to <code>thick_m</code> instead of solving it from the contacts.</td></tr>
 <tr><td>Fold axial traces (trend, plunge, type, name)</td><td>At a fold hinge the bedding contains the fold axis, so points along every axial trace become attitude constraints (trend empty = along the trace, plunge empty = 0). Fold axes are drawn in the 3D viewer, marked on the sections and saved as <code>fold_axes_3d</code>.</td></tr>
 <tr><td>Map layers draped on the terrain</td><td>Default: the layers visible in QGIS. They are rendered and draped on the terrain of the 3D viewer and the OBJ file, and saved as <code>*_map.png</code> + <code>.pgw</code>.</td></tr>
-<tr><td>Output files</td><td>GeoPackage, DXF (polyface meshes, one layer per unit), OBJ + MTL (colours, textured terrain), STL (one file per unit, off by default) and the 3D viewer: each with its own file name and folder; skip any of them. Outputs left as temporary files are written next to the GeoPackage.</td></tr>
+<tr><td>Output folder, file-name prefix, 3D CAD formats</td><td>Everything is written to one folder: <code>prefix.gpkg</code>, <code>prefix_viewer.html</code>, <code>prefix_sections.qgz</code>, <code>prefix_map.png</code> + <code>.pgw</code> and the ticked CAD formats: DXF (polyface meshes, one layer per unit), OBJ + MTL (colours, textured terrain), STL (one file per unit).</td></tr>
 </table>
 <h3>8.3 Outputs</h3>
 <table class="grid">
@@ -227,9 +227,10 @@ meshes, so volumes are computed (<code>volume_m3</code>).</li>
 <tr><td>section_units / section_profile / section_faults / section_frame / section_labels</td><td>The section sheet, placed below the map in the map CRS (x = distance, y = elevation × V.E.), ready for a print layout</td></tr>
 <tr><td>section_lines / model_info</td><td>Section lines on the map; parameters, interface levels and warnings</td></tr>
 </table>
-<p>Other outputs (file names chosen in the dialog): <code>*.dxf</code>, <code>*.obj</code> + <code>*.mtl</code>, <code>*_unit_*.stl</code> and <code>*_viewer.html</code>
-– an offline 3D viewer (three.js) with unit switches, transparency, vertical exaggeration, east / north cut planes,
-sections and PNG export. Add <code>#nopanel</code> to its address for a clean screenshot.</p>
+<p><b>Sections project</b> – <code>prefix_sections.qgz</code> contains only the section sheet (unit polygons with a legend, ground profile, faults, fold marks, frame, ticks and labels) and an A3 print layout ready for PDF export. It opens in a separate QGIS window, so the current project is neither closed nor changed.</p>
+<p><b>3D viewer</b> – <code>prefix_viewer.html</code> (three.js, works offline): unit switches, transparency, vertical exaggeration, east / north cuts and the <b>section cut</b> – choose a section and the side to keep; the model is cut along the section line, the section drawing caps the cut and the view turns to it. Add <code>#cut=0:L</code> (or <code>0:R</code>) to the address to open with a cut, <code>#nopanel</code> for a clean screenshot.</p>
+<div class="fig"><img src="../img/fig7_section_cut.png" width="560"><br>
+<span class="cap">Fig. 7 – Section cut in the 3D viewer: the model is cut along A–A' and the section caps the cut.</span></div>
 
 <h2 id="tips">9. Tips and limitations</h2>
 <ul>

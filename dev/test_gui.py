@@ -40,7 +40,7 @@ for run in (plugin.run_trace, plugin.run_geology, plugin.run_model3d):
     dlg = plugin._dialog
     vals = dlg.mainWidget().createProcessingParameters()
     print(dlg.windowTitle(), "visible:", dlg.isVisible(),
-          {k: (v.name() if hasattr(v, "name") else names.get(v, v)) for k, v in vals.items() if k in ("POINTS","DEM","FAULTS","UNIT_POINTS","TEMPLATE","GEOLOGY","FOLDS","ATTITUDES2","SECTIONS")}, "drape:", len(vals.get("DRAPE_LAYERS") or []))
+          {k: (v.name() if hasattr(v, "name") else names.get(v, v)) for k, v in vals.items() if k in ("POINTS","DEM","FAULTS","UNIT_POINTS","TEMPLATE","GEOLOGY","FOLDS","ATTITUDES","SECTIONS","BOUNDARIES")}, "drape:", len(vals.get("DRAPE_LAYERS") or []))
     dlg.close(); app.processEvents()
     print("closed without error")
 # help dialogs

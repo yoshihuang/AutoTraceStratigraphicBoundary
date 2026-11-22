@@ -117,7 +117,7 @@
 <ol>
 <li><b>プラグイン ▸ 地層境界自動トレース ▸ サンプルプロジェクトとデータをダウンロード…</b>：保存先フォルダを選ぶと、
 プロジェクト <i>C19.qgz</i>（プランジ褶曲を変位させた斜めずれ断層、EPSG:3826）と <i>c19_….gpkg</i>、<i>DEM.tif</i> が保存され、
-すぐに開けます。</li>
+すぐに開けます。サンプルには各手順の成果も含まれます：<i>地層邊界預判線</i>（予測線）、<i>地層預判界線(修正後)</i>（編集後の線）、<i>geology_Interpolation</i>（作成した地質図）、<i>Checking_Point</i>（チェック点）。各ツールをすぐ試せます。</li>
 <li><b>地層境界予測線を作成…</b>：ダイアログには <i>Stratigraphic_Boundary</i>、<i>DEM</i>、<i>faults</i> が自動で入ります。
 <b>実行</b>を押すと一時レイヤ「地層境界予測線」が追加され、上位層ごとに色分けされ「上位/下位」のラベルが付きます。</li>
 <li><b>編集</b>：レイヤを編集モードにし、頂点ツール・形状変更・分割・ライン追加を使います。<i>faults</i> へのスナップを有効にして
@@ -126,7 +126,7 @@ GeoPackage に保存してください（右クリック ▸ <i>永続化</i>）
 <li><b>地質図を作成…</b>：編集済みの境界線と断層を選びます。サンプルでは図郭範囲（DEM）、<i>bedding</i>（地層コード点）、
 <i>geology</i>（テンプレート）が自動で入ります。<b>実行</b>を押します。</li>
 <li><code>qa</code> と「閉じていない境界端点」レイヤを確認し、線を修正して手順 4 を再実行します。</li>
-<li><b>3D 地質モデルと地質断面を作成…</b>：ダイアログには <i>geology</i>、<i>DEM</i>、<i>faults</i>、<i>bedding</i>、<i>Stratigraphic_Boundary</i>、<i>section_line</i> が自動で入ります。出力 GeoPackage を選び <b>実行</b> を押すと、地質断面が地質図の下に描かれ、3D ビューアがブラウザで開きます。</li>
+<li><b>3D 地質モデルと地質断面を作成…</b>：ダイアログには地質図、<i>DEM</i>、<i>faults</i>、<i>fold_axes</i>、<i>bedding</i>、<i>Stratigraphic_Boundary</i>、<i>section_line</i> と地形に貼る表示中のレイヤが自動で入ります。<b>出力フォルダ</b>とファイル名の接頭辞を選び <b>実行</b> を押すと、地質断面は<b>新しい QGIS ウィンドウ</b>で開き（現在のプロジェクトは閉じず、レイヤも追加しません）、3D モデルはブラウザで開きます。</li>
 </ol>
 
 <h2 id="params">6. パラメータ</h2>
@@ -197,7 +197,7 @@ DEM 上に置き、各境界は f の等値面です。<b>姿勢</b>（傾斜・
 <tr><td>層厚を境界面の間隔に使う（詳細）</td><td>境界から求めず、<code>thick_m</code> で境界面の間隔を固定します。</td></tr>
 <tr><td>褶曲軸跡（トレンド、プランジ、種類、名称）</td><td>ヒンジでは地層面が褶曲軸を含むため、軸跡上の点が姿勢条件になります（トレンド空欄＝軸跡の方向、プランジ空欄＝0）。褶曲軸は 3D ビューアに表示し、断面に記号を付け、<code>fold_axes_3d</code> に保存します。</td></tr>
 <tr><td>地形面に貼る地図レイヤ</td><td>既定は QGIS で表示中のレイヤ。描画して 3D ビューアと OBJ の地形面に貼り、<code>*_map.png</code>＋<code>.pgw</code> として保存します。</td></tr>
-<tr><td>出力ファイル</td><td>GeoPackage、DXF（polyface mesh、地層ごとのレイヤ）、OBJ + MTL（色・地形テクスチャ付き）、STL（地層ごと、既定は出力しない）、3D ビューアをそれぞれ別のファイル名・フォルダに保存でき、省略もできます。一時ファイルのままの出力は GeoPackage と同じフォルダに保存します。</td></tr>
+<tr><td>出力フォルダ、接頭辞、3D CAD 形式</td><td>すべて同じフォルダに出力します：<code>接頭辞.gpkg</code>、<code>接頭辞_viewer.html</code>、<code>接頭辞_sections.qgz</code>、<code>接頭辞_map.png</code>＋<code>.pgw</code>、およびチェックした CAD 形式：DXF（polyface mesh、地層ごとのレイヤ）、OBJ + MTL（色・地形テクスチャ付き）、STL（地層ごと）。</td></tr>
 </table>
 <h3>8.3 出力</h3>
 <table class="grid">
@@ -209,9 +209,10 @@ DEM 上に置き、各境界は f の等値面です。<b>姿勢</b>（傾斜・
 <tr><td>section_units／section_profile／section_faults／section_frame／section_labels</td><td>地図座標で地質図の下に配置した断面図（x＝距離、y＝標高×垂直誇張）。印刷レイアウトにそのまま使えます</td></tr>
 <tr><td>section_lines／model_info</td><td>地図上の断面線；パラメータ、境界面の値、警告</td></tr>
 </table>
-<p>このほか（ファイル名はダイアログで指定）<code>*.dxf</code>、<code>*.obj</code> + <code>*.mtl</code>、<code>*_unit_*.stl</code>、<code>*_viewer.html</code> を出力します。
-最後はオフラインの 3D ビューア（three.js）で、地層の表示切替、透明度、垂直誇張、東西／南北の切断、断面表示、PNG 保存ができます。
-アドレスに <code>#nopanel</code> を付けるとパネルを隠してスクリーンショットを撮れます。</p>
+<p><b>断面プロジェクト</b>：<code>接頭辞_sections.qgz</code> は地質断面図（凡例付きの地層、地形線、断層、褶曲記号、図枠、目盛、注記）と A3 印刷レイアウトだけを含み、そのまま PDF 出力できます。別の QGIS ウィンドウで開くため、現在のプロジェクトは閉じず変更もしません。</p>
+<p><b>3D ビューア</b>：<code>接頭辞_viewer.html</code>（three.js、オフライン可）で地層の表示切替、透明度、垂直誇張、東西／南北の切断、そして<b>断面で切断</b>ができます。断面と残す側を選ぶと断面線に沿ってモデルを切り、切り口に断面図を表示して視点を向けます。アドレスに <code>#cut=0:L</code>（または <code>0:R</code>）を付けると切断した状態で、<code>#nopanel</code> を付けるとパネルなしで開きます。</p>
+<div class="fig"><img src="../img/fig7_section_cut.png" width="560"><br>
+<span class="cap">図 7－3D ビューアの断面切断：モデルを A–A' に沿って切り、切り口に断面図を表示。</span></div>
 
 <h2 id="tips">9. 注意点と制限</h2>
 <ul>

@@ -11,10 +11,11 @@ about=For each outcrop point of a stratigraphic boundary (dip, dip direction, up
     Includes a downloadable sample project (oblique-slip fault displacing a plunging fold) and an illustrated guide to the principle and operation.
     User interface and guide: English, 繁體中文, 简体中文, 日本語 (follows the QGIS locale, switchable in the plugin menu).
     Requires only QGIS (GDAL and NumPy shipped with QGIS).
-version=1.2.0
+version=1.3.0
 author=yoshihuang
 email=yoshi.hml@gmail.com
 changelog=
+    1.3.0 3D model: all outputs (GeoPackage, 3D viewer, DXF / OBJ / STL) to one chosen folder; sections shown in a new QGIS project and window (with print layout), the current project is left unchanged; section cut in the 3D viewer; sample project updated (results of every step included).
     1.2.0 3D model: fold axial traces as an input (hinge constraints, shown in the viewer and on sections); DXF / OBJ / STL / viewer as separate output files; the QGIS map is draped on the terrain (viewer, OBJ texture, georeferenced PNG).
     1.1.0 New tool: 3D geological model and geological sections from the geological map (implicit potential-field method), exported to GeoPackage, DXF / OBJ / STL and an offline 3D viewer. Sample data updated (point 69).
     1.0.0 First stable release (same features as 0.1.2).

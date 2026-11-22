@@ -14,15 +14,14 @@ P = {l.name(): l for l in QgsProject.instance().mapLayers().values()}
 OUT = sys.argv[1]
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 t = time.time()
+n_before = len(QgsProject.instance().mapLayers())
 r = processing.run("autotracestrat:buildmodel3d", {
     "GEOLOGY": P["geology"], "DEM": P["DEM"], "FAULTS": P["faults"], "ATTITUDES": P["bedding"],
     "ATTITUDES2": P["Stratigraphic_Boundary"], "SECTIONS": P["section_line"], "VERTICAL_EXAGGERATION": 1,
-    "FOLDS": P["fold_axes"], "OPEN_VIEWER": False, "OUTPUT_GPKG": OUT,
-    "DRAPE_LAYERS": [P[n] for n in ("Stratigraphic_Boundary", "faults", "fold_axes", "contours", "geology")],
-    "OUTPUT_DXF": os.path.join(os.path.dirname(OUT), "cad", "c19_cad.dxf"),
-    "OUTPUT_OBJ": os.path.join(os.path.dirname(OUT), "cad", "c19_cad.obj"),
-    "OUTPUT_STL": os.path.join(os.path.dirname(OUT), "cad", "c19_cad.stl"),
-    "OUTPUT_VIEWER": os.path.join(os.path.dirname(OUT), "c19_view.html")})
+    "FOLDS": P["fold_axes"], "DRAPE_LAYERS": [P[n] for n in ("Stratigraphic_Boundary", "faults", "fold_axes", "contours", "geology")],
+    "OUTPUT_FOLDER": os.path.dirname(OUT), "FILE_PREFIX": os.path.splitext(os.path.basename(OUT))[0],
+    "CAD_FORMATS": [0, 1, 2], "OPEN_VIEWER": False, "OPEN_SECTIONS": False})
+print("project layers before/after:", n_before, len(QgsProject.instance().mapLayers()))
 print("time %.1fs" % (time.time() - t))
 print(r)
 import sqlite3
@@ -34,24 +33,7 @@ print([l.name() for l in QgsProject.instance().mapLayers().values() if l.source(
 for dp, dn, fn in os.walk(os.path.dirname(OUT)):
     for f in sorted(fn):
         print("  file", os.path.relpath(os.path.join(dp, f), os.path.dirname(OUT)), os.path.getsize(os.path.join(dp, f)) // 1024, "KB")
-# temporary CAD outputs -> next to the gpkg
-OUT2 = os.path.join(os.path.dirname(OUT), "tmpcase", "m2.gpkg")
-r2 = processing.run("autotracestrat:buildmodel3d", {"GEOLOGY": P["geology"], "DEM": P["DEM"], "FAULTS": P["faults"],
-    "OPEN_VIEWER": False, "OUTPUT_GPKG": OUT2, "OUTPUT_DXF": "TEMPORARY_OUTPUT", "OUTPUT_STL": None})
-print("temp case:", sorted(os.listdir(os.path.dirname(OUT2))), {k: os.path.basename(v) for k, v in r2.items() if k != "CAD_FILES"})
-# render map + section sheet as QGIS shows it
-os.environ["QT_QPA_FONTDIR"] = r"C:\Windows\Fonts"
-from qgis.core import QgsMapSettings, QgsMapRendererParallelJob, QgsRectangle
-from qgis.PyQt.QtCore import QSize
-from qgis.PyQt.QtGui import QColor
-lays = [l for l in QgsProject.instance().layerTreeRoot().checkedLayers()]
-lays = [l for l in lays if l.name() not in ("contours",)]
-ext = QgsRectangle()
-for l in lays:
-    if l.name().startswith("section_") or l.name() in ("geology",):
-        ext.combineExtentWith(l.extent())
-ext.grow(80)
-ms = QgsMapSettings(); ms.setLayers(lays); ms.setDestinationCrs(P["geology"].crs()); ms.setExtent(ext)
-ms.setOutputSize(QSize(900, int(900 * ext.height() / ext.width()))); ms.setBackgroundColor(QColor("white")); ms.setOutputDpi(96)
-job = QgsMapRendererParallelJob(ms); job.start(); job.waitForFinished()
-job.renderedImage().save(os.path.join(os.path.dirname(OUT), "sheet.png")); print("sheet rendered", [l.name() for l in lays][:12])
+# the sections project
+from qgis.core import QgsProject as _P
+sp = _P(); ok = sp.read(r["SECTIONS_PROJECT"])
+print("sections project:", ok, [l.name() for l in sp.mapLayers().values()], [lo.name() for lo in sp.layoutManager().layouts()])

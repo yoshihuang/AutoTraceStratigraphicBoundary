@@ -117,7 +117,7 @@
 <h2 id="steps">5. 操作步骤（以示例工程演示）</h2>
 <ol>
 <li><b>插件 ▸ 地层边界自动追踪 ▸ 下载示例工程与数据…</b>：选择保存文件夹后，存入工程 <i>C19.qgz</i>
-（斜移断层错断倾伏褶皱，EPSG:3826）及 <i>c19_….gpkg</i>、<i>DEM.tif</i>，并可立即打开。</li>
+（斜移断层错断倾伏褶皱，EPSG:3826）及 <i>c19_….gpkg</i>、<i>DEM.tif</i>，并可立即打开。示例中也保留了各步骤的成果：<i>地層邊界預判線</i>（预判线）、<i>地層預判界線(修正後)</i>（编辑后的线）、<i>geology_Interpolation</i>（生成的地质图）与 <i>Checking_Point</i>（检核点），可直接试用各项工具。</li>
 <li><b>绘制地层边界预判线…</b>：对话框已自动填入 <i>Stratigraphic_Boundary</i>、<i>DEM</i> 与 <i>faults</i>，
 点击 <b>运行</b>。完成后加入临时图层“地层边界预判线”，按上层代号着色并标注“上层/下层”。</li>
 <li><b>编辑</b>：打开该图层的编辑模式，使用顶点工具、重塑、分割或添加线要素；将 <i>faults</i> 设为捕捉对象，
@@ -126,7 +126,7 @@
 <li><b>生成地质图…</b>：选择编辑后的边界线与断层；示例中图幅范围（DEM）、<i>bedding</i>（地层代号点位）与
 <i>geology</i>（模板）已自动填入，点击 <b>运行</b>。</li>
 <li>检查 <code>qa</code> 字段与“未闭合端点”图层，修正线段后可再次运行步骤 4。</li>
-<li><b>生成 3D 地质模型与地质剖面…</b>：对话框已自动填入 <i>geology</i>、<i>DEM</i>、<i>faults</i>、<i>bedding</i>、<i>Stratigraphic_Boundary</i> 与 <i>section_line</i>；选择输出 GeoPackage 后点击 <b>运行</b>。地质剖面会绘在地质图下方，3D 查看器则用浏览器打开。</li>
+<li><b>生成 3D 地质模型与地质剖面…</b>：对话框已自动填入地质图、<i>DEM</i>、<i>faults</i>、<i>fold_axes</i>、<i>bedding</i>、<i>Stratigraphic_Boundary</i>、<i>section_line</i> 与要贴在地形面上的显示中图层。选择<b>输出文件夹</b>与文件名前缀后点击 <b>运行</b>。地质剖面会以<b>新的 QGIS 窗口</b>打开（原本的工程不关闭、也不新增图层），3D 模型则在浏览器中打开。</li>
 </ol>
 
 <h2 id="params">6. 参数说明</h2>
@@ -196,7 +196,7 @@
 <tr><td>以地层厚度作为界面间距（高级）</td><td>以 <code>thick_m</code> 固定界面间距，而不由界线推求。</td></tr>
 <tr><td>褶皱轴迹（趋向、倾伏角、类型、名称）</td><td>褶皱枢纽处的地层面包含褶皱轴，因此沿轴迹的采样点会成为产状条件（趋向空白＝沿轴迹方向，倾伏角空白＝0）。褶皱轴会显示于 3D 查看器、标示于剖面上，并存为 <code>fold_axes_3d</code>。</td></tr>
 <tr><td>贴在地形面上的地图图层</td><td>默认为 QGIS 中当前显示的图层，绘制后贴在 3D 查看器与 OBJ 的地形面上，并存为 <code>*_map.png</code>＋<code>.pgw</code>。</td></tr>
-<tr><td>输出文件</td><td>GeoPackage、DXF（polyface mesh，每个地层一个图层）、OBJ + MTL（含颜色与地形贴图）、STL（每个地层一个文件，默认不输出）与 3D 查看器，可各自指定文件名与文件夹，也可跳过；保留为临时文件者会存在 GeoPackage 同一文件夹。</td></tr>
+<tr><td>输出文件夹、文件名前缀、3D CAD 格式</td><td>所有成果输出至同一文件夹：<code>前缀.gpkg</code>、<code>前缀_viewer.html</code>、<code>前缀_sections.qgz</code>、<code>前缀_map.png</code>＋<code>.pgw</code>，以及勾选的 CAD 格式：DXF（polyface mesh，每个地层一个图层）、OBJ + MTL（含颜色与地形贴图）、STL（每个地层一个文件）。</td></tr>
 </table>
 <h3>8.3 输出</h3>
 <table class="grid">
@@ -208,9 +208,10 @@
 <tr><td>section_units／section_profile／section_faults／section_frame／section_labels</td><td>地质剖面图，以地图坐标绘于地质图下方（x＝距离、y＝高程×垂直夸大），可直接放入打印布局</td></tr>
 <tr><td>section_lines／model_info</td><td>地图上的剖面线；参数、界面场值与警告</td></tr>
 </table>
-<p>另可输出（文件名可在对话框指定）<code>*.dxf</code>、<code>*.obj</code> + <code>*.mtl</code>、<code>*_unit_*.stl</code> 与 <code>*_viewer.html</code>。
-后者是离线 3D 查看器（three.js），可切换各地层、调整透明度与垂直夸大、东西／南北向切割、显示剖面并存为 PNG；
-网址后加上 <code>#nopanel</code> 可隐藏面板以便截图。</p>
+<p><b>剖面工程</b>：<code>前缀_sections.qgz</code> 只包含地质剖面图（含图例的地层、地形线、断层、褶皱标示、图框、刻度与标注）及一个 A3 打印布局，可直接输出 PDF。它会另开一个 QGIS 窗口，当前工程不会被关闭或更改。</p>
+<p><b>3D 查看器</b>：<code>前缀_viewer.html</code>（three.js，可离线使用）可切换各地层、调整透明度与垂直夸大、东西／南北向切割，以及<b>剖面切割</b>：选择剖面与要保留的一侧，模型即沿剖面线切开，切面以剖面图呈现，视角也会转向切面。网址后加 <code>#cut=0:L</code>（或 <code>0:R</code>）可直接以切割状态打开，加 <code>#nopanel</code> 可隐藏面板以便截图。</p>
+<div class="fig"><img src="../img/fig7_section_cut.png" width="560"><br>
+<span class="cap">图 7－3D 查看器的剖面切割：模型沿 A–A' 切开，切面以剖面图呈现。</span></div>
 
 <h2 id="tips">9. 注意事项与限制</h2>
 <ul>
