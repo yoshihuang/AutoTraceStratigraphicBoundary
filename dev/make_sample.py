@@ -13,7 +13,8 @@ print("removing empty temporary layers:", [prj.mapLayer(i).name() for i in drop]
 prj.removeMapLayers(drop)
 assert prj.write(os.path.join(dst, "case.qgz"))
 prj.clear()
-out = os.path.join(os.path.dirname(HERE), "autotrace_strat_boundary", "data", "c19_sample.zip")
+out = os.path.join(os.path.dirname(HERE), "autotrace_strat_boundary", "data", "case_sample.zip")
+os.makedirs(os.path.dirname(out), exist_ok=True)
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
     for f in sorted(os.listdir(dst)):
         z.write(os.path.join(dst, f), name + "/" + f)

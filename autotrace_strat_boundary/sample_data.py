@@ -9,7 +9,7 @@ from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox
 from .i18n import tr
 
 PLUGIN_DIR = os.path.dirname(__file__)
-SAMPLE_ZIP = os.path.join(PLUGIN_DIR, "data", "c19_sample.zip")
+SAMPLE_ZIP = os.path.join(PLUGIN_DIR, "data", "case_sample.zip")
 LAST_DIR_KEY = "AutoTraceStratBoundary/sampleDir"
 
 

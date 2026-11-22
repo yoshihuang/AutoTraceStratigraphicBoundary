@@ -6,6 +6,6 @@ from qgis.core import QgsApplication
 qgs = QgsApplication([], False)
 qgs.initQgis()
 sys.path.append(os.path.join(QgsApplication.pkgDataPath(), "python", "plugins"))
-SAMPLE = os.path.join(os.path.dirname(HERE), "c19_斜移斷層_由錯開的褶皺樞紐求淨滑移_gpkg")
+SAMPLE = os.path.join(os.path.dirname(HERE), "case")
 GPKG = os.path.join(SAMPLE, "data.gpkg")
 DEM = os.path.join(SAMPLE, "DEM.tif")
