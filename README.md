@@ -16,6 +16,7 @@ DEM using the **structure-contour method**. The lines stop at faults, and the pl
 | 4 | Edited lines + faults → new geology layer | *Build geological map* (`core/geology_builder.py`) |
 | 5 | Download the sample project & GeoPackage | menu *Download sample project and data…* (`data/c19_sample.zip`) |
 | 6 | Principle & user guide | menu *Principle and user guide* (`help/<lang>/index.html`) |
+| 7 | Geology → 3D geological model + geological sections, exported to GeoPackage and 3D CAD | *Build 3D geological model and sections* (`core/model3d.py`, `core/model_outputs.py`, `core/export3d.py`, `viewer3d/`) |
 
 Languages: English, 繁體中文, 简体中文, 日本語. The language follows the QGIS locale and can be switched in the plugin menu.
 Supports QGIS 3.22 – 4.x (Qt5 and Qt6).
@@ -29,6 +30,11 @@ autotrace_strat_boundary/      ← the plugin (this folder goes into the zip)
   i18n.py                      all UI strings (en / zh_TW / zh_CN / ja)
   core/tracer.py               structure-contour tracing (NumPy + GDAL contour)
   core/geology_builder.py      polygonize + unit labelling
+  core/model3d.py              implicit potential-field 3D model (cubic RBF, faults, series)
+  core/mesh.py                 marching tetrahedra (numpy)
+  core/model_outputs.py        solids, interfaces, fault planes, terrain, sections
+  core/export3d.py             DXF (polyface) / OBJ + MTL / STL
+  viewer3d/                    offline three.js viewer template (three.js MIT licence)
   processing_provider/         Processing algorithms (toolbox, batch, models)
   help/<lang>/index.html       guide; help/img/*.png figures made from the sample data
   data/c19_sample.zip          sample project (C19.qgz, GeoPackage, DEM)
@@ -45,7 +51,12 @@ Run the tests with the Python of a QGIS installation, e.g.
 "C:\Program Files\QGIS 4.2.3\bin\python-qgis.bat" dev\test_processing.py
 "C:\Program Files\QGIS 4.2.3\bin\python-qgis.bat" dev\test_gui.py
 "C:\Program Files\QGIS 4.2.3\bin\python-qgis.bat" dev\test_load.py
+"C:\Program Files\QGIS 4.2.3\bin\python-qgis.bat" dev\test_model3d.py
+"C:\Program Files\QGIS 4.2.3\bin\python-qgis.bat" dev\test_mesh.py
+"C:\Program Files\QGIS 4.2.3\bin\python-qgis.bat" dev\test_model_alg.py C:\temp\m3d\c19_model.gpkg
 ```
+
+`dev/make_sample.py` rebuilds `data/c19_sample.zip` from the sample folder (empty temporary layers are dropped).
 
 To try it in QGIS, copy (or symlink) `autotrace_strat_boundary` into
 `%APPDATA%\QGIS\QGIS3\profiles\default\python\plugins\` (QGIS 4: `...\QGIS\QGIS4\...`) and enable it in

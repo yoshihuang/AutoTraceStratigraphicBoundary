@@ -7,3 +7,5 @@ idea.txt
 *.gpkg-shm
 *.gpkg-wal
 *.gpkg-journal
+video/build/
+ref/

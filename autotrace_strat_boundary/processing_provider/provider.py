@@ -6,6 +6,7 @@ from qgis.PyQt.QtGui import QIcon
 
 from ..i18n import tr
 from .alg_geology import BuildGeologyAlgorithm
+from .alg_model3d import BuildModel3DAlgorithm
 from .alg_trace import ICON_DIR, TraceBoundaryAlgorithm
 
 PROVIDER_ID = "autotracestrat"
@@ -24,3 +25,4 @@ class AutoTraceStratProvider(QgsProcessingProvider):
     def loadAlgorithms(self):  # noqa: N802
         self.addAlgorithm(TraceBoundaryAlgorithm())
         self.addAlgorithm(BuildGeologyAlgorithm())
+        self.addAlgorithm(BuildModel3DAlgorithm())

@@ -335,3 +335,8 @@ STRINGS = {
     },
 }
 # fmt: on
+
+
+from .i18n_model3d import STRINGS as _MODEL3D_STRINGS  # noqa: E402
+
+STRINGS.update(_MODEL3D_STRINGS)

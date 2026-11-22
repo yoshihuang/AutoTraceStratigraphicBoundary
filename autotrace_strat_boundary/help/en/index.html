@@ -8,7 +8,7 @@
 <body>
 <h1>AutoTrace Stratigraphic Boundary</h1>
 <p class="lead">Predicts where stratigraphic boundaries crop out from outcrop observations (dip / dip direction) and a DEM,
-using the <b>structure-contour method</b>, then builds a geological map from your edited lines and the faults.</p>
+using the <b>structure-contour method</b>, then builds a geological map from your edited lines and the faults, and a 3D geological model with geological sections.</p>
 
 <p class="langs">English · <a href="../zh_TW/index.html">繁體中文</a> · <a href="../zh_CN/index.html">简体中文</a> · <a href="../ja/index.html">日本語</a></p>
 
@@ -21,6 +21,7 @@ using the <b>structure-contour method</b>, then builds a geological map from you
 <li><a href="#steps">Step-by-step with the sample project</a></li>
 <li><a href="#params">Parameters</a></li>
 <li><a href="#fields">Output fields</a></li>
+<li><a href="#model3d">3D geological model and sections</a></li>
 <li><a href="#tips">Tips and limitations</a></li>
 </ol>
 
@@ -29,7 +30,8 @@ using the <b>structure-contour method</b>, then builds a geological map from you
 <td><b>①</b><br>Outcrop points<br>+ DEM + faults</td><td>→</td>
 <td><b>②</b><br><i>Trace predicted boundary lines</i><br>(temporary layer)</td><td>→</td>
 <td><b>③</b><br>Edit the lines<br>in QGIS</td><td>→</td>
-<td><b>④</b><br><i>Build geological map</i><br>(geology polygons)</td>
+<td><b>④</b><br><i>Build geological map</i><br>(geology polygons)</td><td>→</td>
+<td><b>⑤</b><br><i>3D model and sections</i><br>(GeoPackage, CAD, 3D viewer)</td>
 </tr></table>
 <p>Both tools are in the menu <b>Plugins ▸ AutoTrace Stratigraphic Boundary</b>, on the toolbar, and in the
 Processing Toolbox (group <i>Geological mapping</i>), so they can be used in batch mode and in models.</p>
@@ -138,6 +140,7 @@ Then save the layer to a GeoPackage (right-click ▸ <i>Make Permanent</i>), bec
 <li><b>Build geological map…</b> – choose the edited lines and the faults. For the sample the extent (DEM),
 <i>bedding</i> (unit sample points) and <i>geology</i> (template) are pre-filled. Click <b>Run</b>.</li>
 <li>Check the <code>qa</code> field and the <i>Unclosed boundary ends</i> layer, fix the lines, and run step 4 again if needed.</li>
+<li><b>Build 3D geological model and sections…</b> – the dialog is pre-filled with <i>geology</i>, <i>DEM</i>, <i>faults</i>, <i>bedding</i>, <i>Stratigraphic_Boundary</i> and <i>section_line</i>. Choose the output GeoPackage and click <b>Run</b>. The section sheet appears below the map and the 3D viewer opens in the web browser.</li>
 </ol>
 
 <h2 id="params">6. Parameters</h2>
@@ -178,7 +181,54 @@ Then save the layer to a GeoPackage (right-click ▸ <i>Make Permanent</i>), bec
 <tr><td>area_m2</td><td>Area</td></tr>
 </table>
 
-<h2 id="tips">8. Tips and limitations</h2>
+<h2 id="model3d">8. 3D geological model and sections</h2>
+<p>The tool <b>Build 3D geological model and sections</b> turns the geological map into a 3D model, using the same
+<b>implicit potential-field method</b> as the web app <a href="https://yoshihuang.github.io/geomap-workbench/">geomap-workbench</a>.</p>
+<h3>8.1 Principle</h3>
+<ul>
+<li>Units are grouped into <b>series</b> (field <code>series</code>; a higher number lies above an unconformity) and ordered by
+<code>strat_order</code> (1 = oldest).</li>
+<li>For every series a scalar field f(x, y, z) is interpolated with a cubic radial basis function (kernel r³):
+<b>interface points</b> come from the contacts between adjacent units on the geological map, placed on the DEM, and each contact
+is an iso-surface of f; <b>attitudes</b> (dip, dip direction, overturned) are gradient constraints, so the surfaces dip correctly
+at depth; every <b>fault</b> adds a drift term on its hanging-wall side, so the surfaces are offset across the fault plane
+(trace + dip + dip direction).</li>
+<li>A point belongs to the youngest series whose field is above that series' base, and to the unit whose interval contains
+the field value. Units with <code>kind = ign</code> are extruded vertically from the map.</li>
+<li>Solids are extracted with marching tetrahedra, clipped by the topography and the model box; they are closed (watertight)
+meshes, so volumes are computed (<code>volume_m3</code>).</li>
+<li>Quality: the log reports how many map cells have the same unit at the ground surface in the model (99.6 % for the sample).</li>
+</ul>
+<div class="fig"><img src="../img/fig5_model3d.png" width="560"><br>
+<span class="cap">Fig. 5 – 3D model of the sample: plunging anticline (O1 core) offset by fault F1; terrain draped with the geological map.</span></div>
+<div class="fig"><img src="../img/fig6_section.png" width="620"><br>
+<span class="cap">Fig. 6 – Geological section A–A' of the sample (V.E. ×1), drawn below the map in QGIS.</span></div>
+<h3>8.2 Parameters</h3>
+<table class="grid">
+<tr><th>Parameter</th><th>Meaning</th></tr>
+<tr><td>Geological map and its fields</td><td>Unit code, stratigraphic order, name, series, thickness, kind (sed / ign).</td></tr>
+<tr><td>Faults: dip / dip direction fields</td><td>Fault plane attitude (default dip 60° when empty).</td></tr>
+<tr><td>Attitude points 1 and 2</td><td>Dip, dip direction (or strike), unit code (optional; otherwise the unit under the point), overturned.</td></tr>
+<tr><td>Section lines</td><td>One section per line (field <code>name</code>, e.g. A-A'). Empty: one section across the strike.</td></tr>
+<tr><td>Vertical exaggeration</td><td>Of the section sheet.</td></tr>
+<tr><td>Cell size / model depth</td><td>0 = automatic (1/40 of the map width; depth 35 % of the width below the lowest ground). Smaller cells give smoother but larger files.</td></tr>
+<tr><td>Use the unit thicknesses (advanced)</td><td>Fixes the spacing of the interfaces to <code>thick_m</code> instead of solving it from the contacts.</td></tr>
+<tr><td>3D CAD formats</td><td>DXF (polyface meshes, one layer per unit), OBJ + MTL (colours), STL (one file per unit).</td></tr>
+</table>
+<h3>8.3 Outputs</h3>
+<table class="grid">
+<tr><th>GeoPackage layer</th><th>Content</th></tr>
+<tr><td>units_3d</td><td>Closed 3D solid of every unit (MultiPolygonZ, triangles) with volume</td></tr>
+<tr><td>horizons_3d / faults_3d / terrain_3d</td><td>Interfaces between units, fault planes, ground surface coloured by unit</td></tr>
+<tr><td>section_fences_3d</td><td>Sections as vertical 3D panels on the section lines (for the QGIS 3D map view)</td></tr>
+<tr><td>section_units / section_profile / section_faults / section_frame / section_labels</td><td>The section sheet, placed below the map in the map CRS (x = distance, y = elevation × V.E.), ready for a print layout</td></tr>
+<tr><td>section_lines / model_info</td><td>Section lines on the map; parameters, interface levels and warnings</td></tr>
+</table>
+<p>Next to the GeoPackage: <code>*.dxf</code>, <code>*.obj</code> + <code>*.mtl</code>, <code>*_unit_*.stl</code> and <code>*_viewer.html</code>
+– an offline 3D viewer (three.js) with unit switches, transparency, vertical exaggeration, east / north cut planes,
+sections and PNG export. Add <code>#nopanel</code> to its address for a clean screenshot.</p>
+
+<h2 id="tips">9. Tips and limitations</h2>
 <ul>
 <li>The prediction assumes planar (or smoothly varying) boundaries. Tight folds, thickness changes and
 unconformities need more observation points or manual editing.</li>

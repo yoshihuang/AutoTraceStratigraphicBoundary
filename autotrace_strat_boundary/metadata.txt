@@ -3,22 +3,24 @@ name=AutoTrace Stratigraphic Boundary
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
-description=Predicts stratigraphic boundary outcrop lines from dip/dip-direction outcrop points and a DEM (structure-contour method), stops them at faults, and builds a geological map from the edited lines. 依構造等高線原理由露頭位態與 DEM 預判地層邊界線並產生地質圖。
+description=Predicts stratigraphic boundary outcrop lines from dip/dip-direction outcrop points and a DEM (structure-contour method), stops them at faults, builds a geological map from the edited lines, and a 3D geological model with sections. 依構造等高線原理由露頭位態與 DEM 預判地層邊界線並產生地質圖。
 about=For each outcrop point of a stratigraphic boundary (dip, dip direction, upper and lower unit codes) the boundary plane is intersected with the DEM, and the outcrop line is followed to both sides of the point.
     Points of the same boundary in the same fault block are joined end to end through an inverse-distance blend of their planes, and lines stop on faults.
     A second tool polygonizes the edited boundary lines with the faults and assigns units from the side of each boundary, producing a geology layer.
+    A third tool builds a 3D geological model and geological sections from the geological map, DEM, attitudes and faults (implicit potential-field method), saved as GeoPackage (2D section sheet + 3D layers), DXF / OBJ / STL and an offline three.js 3D viewer.
     Includes a downloadable sample project (oblique-slip fault displacing a plunging fold) and an illustrated guide to the principle and operation.
     User interface and guide: English, 繁體中文, 简体中文, 日本語 (follows the QGIS locale, switchable in the plugin menu).
     Requires only QGIS (GDAL and NumPy shipped with QGIS).
-version=1.0.0
+version=1.1.0
 author=yoshihuang
 email=yoshi.hml@gmail.com
 changelog=
+    1.1.0 New tool: 3D geological model and geological sections from the geological map (implicit potential-field method), exported to GeoPackage, DXF / OBJ / STL and an offline 3D viewer. Sample data updated (point 69).
     1.0.0 First stable release (same features as 0.1.2).
     0.1.2 Pass plugins.qgis.org checks: no try/except/pass (bandit B110), Qt6 scoped enums, exec() instead of exec_().
     0.1.1 Fix "wrapped C/C++ object of type AlgorithmWidget has been deleted" when closing the tool dialogs in QGIS 4; dialogs now open non-modally.
     0.1.0 First release: boundary tracing, geology builder, sample project, multilingual help (en, zh_TW, zh_CN, ja).
-tags=geology,stratigraphy,structure contour,dip,strike,DEM,fault,geological map,outcrop,mapping
+tags=geology,3D geological model,geological section,cross section,stratigraphy,structure contour,dip,strike,DEM,fault,geological map,outcrop,mapping
 homepage=https://github.com/yoshihuang/AutoTraceStratigraphicBoundary
 repository=https://github.com/yoshihuang/AutoTraceStratigraphicBoundary
 tracker=https://github.com/yoshihuang/AutoTraceStratigraphicBoundary/issues

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D geological model</title>
+<style>
+  :root { --bg: #f4efe6; --panel: #fffdf8; --ink: #2d2620; --muted: #7a6d60; --accent: #c4622d; --line: #e2d8c8; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font: 13px/1.45 "Segoe UI", "Microsoft JhengHei", "Microsoft YaHei", "Yu Gothic", sans-serif; overflow: hidden; }
+  #view { position: absolute; inset: 0; }
+  #panel { position: absolute; top: 12px; left: 12px; width: 270px; max-height: calc(100% - 24px); overflow: auto;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 4px 18px rgba(0,0,0,.12); padding: 12px 14px; }
+  h1 { font-size: 15px; margin: 0 0 2px; color: #5b3a29; }
+  .sub { color: var(--muted); font-size: 11.5px; margin-bottom: 8px; }
+  h2 { font-size: 12px; text-transform: none; color: var(--accent); margin: 12px 0 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+  label.row { display: flex; align-items: center; gap: 6px; margin: 2px 0; cursor: pointer; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.35); flex: none; }
+  .rng { display: grid; grid-template-columns: 1fr 44px; gap: 6px; align-items: center; margin: 3px 0; }
+  .rng span { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  button { font: inherit; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 3px 8px; cursor: pointer; margin: 2px 2px 0 0; }
+  button:hover { border-color: var(--accent); }
+  #hint { position: absolute; right: 12px; bottom: 10px; color: var(--muted); font-size: 11.5px; background: rgba(255,253,248,.85); padding: 4px 8px; border-radius: 6px; }
+  #warn { color: #9a4a00; font-size: 11.5px; }
+  @media (max-width: 600px) { #panel { width: calc(100% - 48px); max-height: 45%; } }
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div id="panel">
+  <h1 id="title"></h1>
+  <div class="sub" id="subtitle"></div>
+  <h2 id="h_units"></h2>
+  <div id="units"></div>
+  <div class="rng"><input id="opSolid" type="range" min="0" max="100" value="100"><span id="opSolidV">100%</span></div>
+  <h2 id="h_layers"></h2>
+  <div id="layers"></div>
+  <div class="rng"><input id="opTerrain" type="range" min="0" max="100" value="100"><span id="opTerrainV">100%</span></div>
+  <h2 id="h_ve"></h2>
+  <div class="rng"><input id="ve" type="range" min="1" max="5" step="0.5" value="1"><span id="veV">×1</span></div>
+  <h2 id="h_cut"></h2>
+  <div class="rng"><input id="cutX" type="range" min="0" max="100" value="100"><span id="cutXV">E</span></div>
+  <div class="rng"><input id="cutY" type="range" min="0" max="100" value="100"><span id="cutYV">N</span></div>
+  <h2 id="h_view"></h2>
+  <button id="bTop"></button><button id="bIso"></button><button id="bShot"></button>
+  <div id="warn"></div>
+</div>
+<div id="hint"></div>
+<script>/*THREE_JS*/</script>
+<script>/*ORBIT_JS*/</script>
+<script>const DATA = /*DATA_JSON*/;</script>
+<script>
+(function () {
+  const T = DATA.text;
+  const $ = (id) => document.getElementById(id);
+  if (location.hash.indexOf('nopanel') >= 0) { $('panel').style.display = 'none'; $('hint').style.display = 'none'; }
+  $('title').textContent = DATA.title;
+  $('subtitle').textContent = DATA.subtitle;
+  for (const k of ['h_units', 'h_layers', 'h_ve', 'h_cut', 'h_view']) $(k).textContent = T[k];
+  $('bTop').textContent = T.top; $('bIso').textContent = T.iso; $('bShot').textContent = T.shot;
+  $('hint').textContent = T.hint;
+  if (DATA.warnings && DATA.warnings.length) $('warn').textContent = '⚠ ' + DATA.warnings.join(' / ');
+
+  const view = $('view');
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  renderer.localClippingEnabled = true;
+  view.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf4efe6);
+  const camera = new THREE.PerspectiveCamera(40, 1, 1, 1e7);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(-0.6, 1.2, 0.8); scene.add(sun);
+  const sun2 = new THREE.DirectionalLight(0xffffff, 0.25); sun2.position.set(0.7, 0.4, -0.9); scene.add(sun2);
+
+  const model = new THREE.Group(); scene.add(model);
+  const ext = DATA.extent; // relative: [x0, y0, x1, y1, zbase, ztop]
+  const clipX = new THREE.Plane(new THREE.Vector3(-1, 0, 0), ext[2]);
+  const clipY = new THREE.Plane(new THREE.Vector3(0, 0, 1), -ext[1]);   // scene z = -y
+  const clips = [clipX, clipY];
+
+  function b64(s, Type) {
+    const bin = atob(s), buf = new ArrayBuffer(bin.length), u8 = new Uint8Array(buf);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return new Type(buf);
+  }
+  function geom(m) {
+    const p = b64(m.pos, Float32Array), g = new THREE.BufferGeometry();
+    const q = new Float32Array(p.length);
+    for (let i = 0; i < p.length; i += 3) { q[i] = p[i]; q[i + 1] = p[i + 2]; q[i + 2] = -p[i + 1]; }
+    g.setAttribute('position', new THREE.BufferAttribute(q, 3));
+    if (m.idx) g.setIndex(new THREE.BufferAttribute(b64(m.idx, Uint32Array), 1));
+    if (m.col) g.setAttribute('color', new THREE.BufferAttribute(b64(m.col, Uint8Array), 3, true));
+    g.computeVertexNormals();
+    return g;
+  }
+  const groups = { solid: [], horizon: [], fault: [], terrain: [], section: [] };
+  for (const m of DATA.meshes) {
+    const mat = new THREE.MeshLambertMaterial({
+      color: m.col ? 0xffffff : new THREE.Color(m.color), vertexColors: !!m.col, side: THREE.DoubleSide,
+      transparent: m.kind !== 'solid' || false, opacity: m.kind === 'fault' ? 0.55 : (m.kind === 'horizon' ? 0.85 : 1),
+      clippingPlanes: clips, polygonOffset: m.kind === 'terrain', polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    });
+    const mesh = new THREE.Mesh(geom(m), mat);
+    mesh.userData = m; model.add(mesh); groups[m.kind].push(mesh);
+    if (m.kind === 'horizon') mesh.visible = false;
+  }
+  // sections: textured vertical walls along the section lines
+  for (const s of DATA.sections) {
+    const pos = [], uv = [], idx = [];
+    const n = s.pts.length;
+    for (let i = 0; i < n; i++) {
+      const [x, y, u] = s.pts[i];
+      pos.push(x, s.ztop, -y, x, s.zbase, -y);
+      uv.push(u, 1, u, 0);
+      if (i < n - 1) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+    const tex = new THREE.TextureLoader().load(s.img); tex.anisotropy = 4;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true, alphaTest: 0.05 });
+    const mesh = new THREE.Mesh(g, mat); mesh.userData = { kind: 'section', name: s.name };
+    mesh.visible = false; model.add(mesh); groups.section.push(mesh);
+  }
+
+  // unit list
+  const uBox = $('units');
+  for (const u of DATA.units) {
+    const meshes = groups.solid.filter(m => m.userData.unit === u.code);
+    if (!meshes.length) continue;
+    const l = document.createElement('label'); l.className = 'row';
+    l.innerHTML = '<input type="checkbox" checked><span class="sw" style="background:' + u.color + '"></span><span></span>';
+    l.lastChild.textContent = u.name;
+    l.firstChild.onchange = (e) => meshes.forEach(m => m.visible = e.target.checked);
+    uBox.appendChild(l);
+  }
+  const lBox = $('layers');
+  for (const [key, label, on] of [['terrain', T.terrain, true], ['section', T.sections, false],
+                                   ['fault', T.faults, true], ['horizon', T.horizons, false]]) {
+    if (!groups[key].length) continue;
+    const l = document.createElement('label'); l.className = 'row';
+    l.innerHTML = '<input type="checkbox"' + (on ? ' checked' : '') + '><span></span>';
+    l.lastChild.textContent = label;
+    groups[key].forEach(m => m.visible = on);
+    l.firstChild.onchange = (e) => groups[key].forEach(m => m.visible = e.target.checked);
+    lBox.appendChild(l);
+  }
+  function bindRange(id, fmt, fn) { const r = $(id), v = $(id + 'V'); const f = () => { v.textContent = fmt(+r.value); fn(+r.value); }; r.oninput = f; f(); }
+  bindRange('opSolid', v => v + '%', v => groups.solid.forEach(m => { m.material.transparent = v < 100; m.material.opacity = v / 100; m.material.depthWrite = v >= 100; }));
+  bindRange('opTerrain', v => v + '%', v => groups.terrain.forEach(m => { m.material.opacity = v / 100; m.material.depthWrite = v >= 100; }));
+  bindRange('ve', v => '×' + v, v => { model.scale.y = v; });
+  // three.js keeps points with normal·p + constant >= 0
+  bindRange('cutX', v => v + '%', v => { clipX.constant = ext[0] + (ext[2] - ext[0]) * v / 100 + 1e-3; });   // x <= cut
+  bindRange('cutY', v => v + '%', v => { clipY.constant = ext[1] + (ext[3] - ext[1]) * v / 100 + 1e-3; });   // y <= cut
+
+  const size = Math.max(ext[2] - ext[0], ext[3] - ext[1]);
+  const cx = (ext[0] + ext[2]) / 2, cy = (ext[1] + ext[3]) / 2, cz = (ext[4] + ext[5]) / 2;
+  function iso() { camera.position.set(cx - size * 1.25, cz + size * 1.05, -cy + size * 1.55); controls.target.set(cx, cz, -cy); controls.update(); }
+  function top() { camera.position.set(cx, cz + size * 1.6, -cy + 0.01); controls.target.set(cx, cz, -cy); controls.update(); }
+  $('bIso').onclick = iso; $('bTop').onclick = top;
+  $('bShot').onclick = () => { renderer.render(scene, camera); const a = document.createElement('a'); a.download = 'model3d.png'; a.href = renderer.domElement.toDataURL('image/png'); a.click(); };
+  iso();
+
+  function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  window.addEventListener('resize', resize); resize();
+  (function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+  window.__model3d = { ready: true, meshes: DATA.meshes.length, sections: DATA.sections.length };
+})();
+</script>
+</body>
+</html>

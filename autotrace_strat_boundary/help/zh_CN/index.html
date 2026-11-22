@@ -8,7 +8,7 @@
 <body>
 <h1>地层边界自动追踪 AutoTrace Stratigraphic Boundary</h1>
 <p class="lead">根据露头点的产状（倾角／倾向）与数字高程模型（DEM），按<b>构造等高线原理</b>预判地层边界的露头线，
-再由用户编辑后的边界线与断层生成地质图。</p>
+再由用户编辑后的边界线与断层生成地质图，并进一步建立 3D 地质模型与地质剖面。</p>
 
 <p class="langs"><a href="../en/index.html">English</a> · <a href="../zh_TW/index.html">繁體中文</a> · 简体中文 · <a href="../ja/index.html">日本語</a></p>
 
@@ -21,6 +21,7 @@
 <li><a href="#steps">操作步骤（以示例工程演示）</a></li>
 <li><a href="#params">参数说明</a></li>
 <li><a href="#fields">输出字段</a></li>
+<li><a href="#model3d">3D 地质模型与地质剖面</a></li>
 <li><a href="#tips">注意事项与限制</a></li>
 </ol>
 
@@ -29,7 +30,8 @@
 <td><b>①</b><br>露头点<br>＋DEM＋断层</td><td>→</td>
 <td><b>②</b><br><i>绘制地层边界预判线</i><br>（临时图层）</td><td>→</td>
 <td><b>③</b><br>在 QGIS 中<br>编辑预判线</td><td>→</td>
-<td><b>④</b><br><i>生成地质图</i><br>（geology 多边形）</td>
+<td><b>④</b><br><i>生成地质图</i><br>（geology 多边形）</td><td>→</td>
+<td><b>⑤</b><br><i>3D 模型与剖面</i><br>（GeoPackage、CAD、3D 查看器）</td>
 </tr></table>
 <p>两个工具位于菜单 <b>插件 ▸ 地层边界自动追踪</b>、工具栏以及处理工具箱（分组“地质图绘制”），
 因此也可以批量运行或放入图形建模器。</p>
@@ -124,6 +126,7 @@
 <li><b>生成地质图…</b>：选择编辑后的边界线与断层；示例中图幅范围（DEM）、<i>bedding</i>（地层代号点位）与
 <i>geology</i>（模板）已自动填入，点击 <b>运行</b>。</li>
 <li>检查 <code>qa</code> 字段与“未闭合端点”图层，修正线段后可再次运行步骤 4。</li>
+<li><b>生成 3D 地质模型与地质剖面…</b>：对话框已自动填入 <i>geology</i>、<i>DEM</i>、<i>faults</i>、<i>bedding</i>、<i>Stratigraphic_Boundary</i> 与 <i>section_line</i>；选择输出 GeoPackage 后点击 <b>运行</b>。地质剖面会绘在地质图下方，3D 查看器则用浏览器打开。</li>
 </ol>
 
 <h2 id="params">6. 参数说明</h2>
@@ -164,7 +167,49 @@
 <tr><td>area_m2</td><td>面积</td></tr>
 </table>
 
-<h2 id="tips">8. 注意事项与限制</h2>
+<h2 id="model3d">8. 3D 地质模型与地质剖面</h2>
+<p>“生成 3D 地质模型与地质剖面”工具把地质图转成 3D 模型，方法与网页版
+<a href="https://yoshihuang.github.io/geomap-workbench/">geomap-workbench</a> 相同，采用<b>隐式位势场法</b>。</p>
+<h3>8.1 原理</h3>
+<ul>
+<li>地层按<b>层系</b>（字段 <code>series</code>；数字大者位于不整合之上）分组，并按 <code>strat_order</code>（1＝最老）排序。</li>
+<li>每个层系用三次径向基函数（核函数 r³）插值一个标量场 f(x, y, z)：<b>界面点</b>取自地质图上相邻地层的界线并置于 DEM 上，
+每条界线都是 f 的一个等值面；<b>产状</b>（倾角、倾向、倒转）作为梯度条件，使地层面在地下有正确的倾斜；
+每条<b>断层</b>（迹线＋倾角＋倾向）在上盘加入一个漂移项，使地层面在断层面两侧错移。</li>
+<li>某一点属于“场值高于该层系底面”的最年轻层系，并按场值所在区间确定地层。<code>kind = ign</code> 的地层由地质图垂直延伸。</li>
+<li>用 marching tetrahedra 提取各地层实体，并用地形与模型边界裁切；实体为封闭网格，因此可计算体积（<code>volume_m3</code>）。</li>
+<li>质量检查：日志会列出模型地表地层与地质图的一致率（示例为 99.6%）。</li>
+</ul>
+<div class="fig"><img src="../img/fig5_model3d.png" width="560"><br>
+<span class="cap">图 5－示例的 3D 地质模型：倾伏背斜（核部 O1）被断层 F1 错移；地形面贴上地质图。</span></div>
+<div class="fig"><img src="../img/fig6_section.png" width="620"><br>
+<span class="cap">图 6－示例的地质剖面 A–A'（垂直夸大 ×1），绘于 QGIS 地质图下方。</span></div>
+<h3>8.2 参数</h3>
+<table class="grid">
+<tr><th>参数</th><th>说明</th></tr>
+<tr><td>地质图及其字段</td><td>地层代号、层序、名称、层系、厚度、岩类（sed／ign）。</td></tr>
+<tr><td>断层：倾角／倾向字段</td><td>断层面产状（空白时默认倾角 60°）。</td></tr>
+<tr><td>产状点位 1、2</td><td>倾角、倾向（或走向）、所属地层（可选，否则取点位所在的地层）、倒转。</td></tr>
+<tr><td>剖面线</td><td>每条线生成一个剖面（字段 <code>name</code>，如 A-A'）；空白时自动生成一条垂直走向的剖面。</td></tr>
+<tr><td>剖面垂直夸大倍率</td><td>剖面图的垂直夸大。</td></tr>
+<tr><td>网格大小／模型深度</td><td>0＝自动（图幅宽度的 1/40；深度为最低地表以下图幅宽度的 35%）。网格越小越平滑，但文件越大。</td></tr>
+<tr><td>以地层厚度作为界面间距（高级）</td><td>以 <code>thick_m</code> 固定界面间距，而不由界线推求。</td></tr>
+<tr><td>3D CAD 格式</td><td>DXF（polyface mesh，每个地层一个图层）、OBJ + MTL（含颜色）、STL（每个地层一个文件）。</td></tr>
+</table>
+<h3>8.3 输出</h3>
+<table class="grid">
+<tr><th>GeoPackage 图层</th><th>内容</th></tr>
+<tr><td>units_3d</td><td>各地层的封闭 3D 实体（MultiPolygonZ 三角网）及体积</td></tr>
+<tr><td>horizons_3d／faults_3d／terrain_3d</td><td>地层界面、断层面、按地层着色的地形面</td></tr>
+<tr><td>section_fences_3d</td><td>立在剖面线上的 3D 剖面（供 QGIS 3D 地图查看）</td></tr>
+<tr><td>section_units／section_profile／section_faults／section_frame／section_labels</td><td>地质剖面图，以地图坐标绘于地质图下方（x＝距离、y＝高程×垂直夸大），可直接放入打印布局</td></tr>
+<tr><td>section_lines／model_info</td><td>地图上的剖面线；参数、界面场值与警告</td></tr>
+</table>
+<p>GeoPackage 旁另有 <code>*.dxf</code>、<code>*.obj</code> + <code>*.mtl</code>、<code>*_unit_*.stl</code> 与 <code>*_viewer.html</code>。
+后者是离线 3D 查看器（three.js），可切换各地层、调整透明度与垂直夸大、东西／南北向切割、显示剖面并存为 PNG；
+网址后加上 <code>#nopanel</code> 可隐藏面板以便截图。</p>
+
+<h2 id="tips">9. 注意事项与限制</h2>
 <ul>
 <li>预判以层面为平面（或平滑变化）为前提；紧闭褶皱、厚度变化及不整合需要更多观测点或人工编辑。</li>
 <li>结果受 DEM 与产状精度影响；缓坡上 20° 倾角若有 5° 误差，线的位置就可能相差很远。请结合野外记录与航片检查。</li>

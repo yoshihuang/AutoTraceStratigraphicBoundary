@@ -8,7 +8,7 @@
 <body>
 <h1>地層境界自動トレース AutoTrace Stratigraphic Boundary</h1>
 <p class="lead">露頭点の姿勢（傾斜／傾斜方位）と数値標高モデル（DEM）から、<b>構造等高線法</b>により地層境界の露頭線を予測し、
-編集した境界線と断層から地質図を作成します。</p>
+編集した境界線と断層から地質図を作成し、さらに 3D 地質モデルと地質断面を作成します。</p>
 
 <p class="langs"><a href="../en/index.html">English</a> · <a href="../zh_TW/index.html">繁體中文</a> · <a href="../zh_CN/index.html">简体中文</a> · 日本語</p>
 
@@ -21,6 +21,7 @@
 <li><a href="#steps">操作手順（サンプルプロジェクト）</a></li>
 <li><a href="#params">パラメータ</a></li>
 <li><a href="#fields">出力フィールド</a></li>
+<li><a href="#model3d">3D 地質モデルと地質断面</a></li>
 <li><a href="#tips">注意点と制限</a></li>
 </ol>
 
@@ -29,7 +30,8 @@
 <td><b>①</b><br>露頭点<br>＋DEM＋断層</td><td>→</td>
 <td><b>②</b><br><i>地層境界予測線を作成</i><br>（一時レイヤ）</td><td>→</td>
 <td><b>③</b><br>QGIS で<br>予測線を編集</td><td>→</td>
-<td><b>④</b><br><i>地質図を作成</i><br>（geology ポリゴン）</td>
+<td><b>④</b><br><i>地質図を作成</i><br>（geology ポリゴン）</td><td>→</td>
+<td><b>⑤</b><br><i>3D モデルと断面</i><br>（GeoPackage、CAD、3D ビューア）</td>
 </tr></table>
 <p>ツールはメニュー <b>プラグイン ▸ 地層境界自動トレース</b>、ツールバー、プロセッシングツールボックス
 （グループ「地質図作成」）にあります。バッチ処理やモデルにも組み込めます。</p>
@@ -124,6 +126,7 @@ GeoPackage に保存してください（右クリック ▸ <i>永続化</i>）
 <li><b>地質図を作成…</b>：編集済みの境界線と断層を選びます。サンプルでは図郭範囲（DEM）、<i>bedding</i>（地層コード点）、
 <i>geology</i>（テンプレート）が自動で入ります。<b>実行</b>を押します。</li>
 <li><code>qa</code> と「閉じていない境界端点」レイヤを確認し、線を修正して手順 4 を再実行します。</li>
+<li><b>3D 地質モデルと地質断面を作成…</b>：ダイアログには <i>geology</i>、<i>DEM</i>、<i>faults</i>、<i>bedding</i>、<i>Stratigraphic_Boundary</i>、<i>section_line</i> が自動で入ります。出力 GeoPackage を選び <b>実行</b> を押すと、地質断面が地質図の下に描かれ、3D ビューアがブラウザで開きます。</li>
 </ol>
 
 <h2 id="params">6. パラメータ</h2>
@@ -164,7 +167,50 @@ GeoPackage に保存してください（右クリック ▸ <i>永続化</i>）
 <tr><td>area_m2</td><td>面積</td></tr>
 </table>
 
-<h2 id="tips">8. 注意点と制限</h2>
+<h2 id="model3d">8. 3D 地質モデルと地質断面</h2>
+<p>「3D 地質モデルと地質断面を作成」は、Web アプリ <a href="https://yoshihuang.github.io/geomap-workbench/">geomap-workbench</a>
+と同じ<b>陰的ポテンシャル場法</b>で地質図を 3D モデルに変換します。</p>
+<h3>8.1 原理</h3>
+<ul>
+<li>地層は<b>層群</b>（フィールド <code>series</code>；大きいほど不整合の上）にまとめ、<code>strat_order</code>（1＝最古）で並べます。</li>
+<li>層群ごとに 3 次の放射基底関数（核 r³）でスカラー場 f(x, y, z) を補間します。<b>境界点</b>は地質図上の隣接地層の境界から取り
+DEM 上に置き、各境界は f の等値面です。<b>姿勢</b>（傾斜・傾斜方位・逆転）は勾配条件として地下での傾斜を決め、
+<b>断層</b>（トレース＋傾斜＋傾斜方位）は上盤側にドリフト項を加えて境界面を変位させます。</li>
+<li>ある点は「場の値がその層群の基底より上」となる最も新しい層群に属し、値の区間で地層が決まります。
+<code>kind = ign</code> の地層は地質図から鉛直に延ばします。</li>
+<li>marching tetrahedra で各地層の立体を抽出し、地形とモデル範囲で切り取ります。閉じたメッシュなので体積（<code>volume_m3</code>）も計算します。</li>
+<li>品質：ログに地表でのモデルと地質図の一致率を表示します（サンプルでは 99.6%）。</li>
+</ul>
+<div class="fig"><img src="../img/fig5_model3d.png" width="560"><br>
+<span class="cap">図 5－サンプルの 3D 地質モデル：断層 F1 で変位したプランジ背斜（核部 O1）。地形面に地質図を貼っています。</span></div>
+<div class="fig"><img src="../img/fig6_section.png" width="620"><br>
+<span class="cap">図 6－サンプルの地質断面 A–A'（垂直誇張 ×1）。QGIS で地質図の下に描かれます。</span></div>
+<h3>8.2 パラメータ</h3>
+<table class="grid">
+<tr><th>パラメータ</th><th>説明</th></tr>
+<tr><td>地質図とフィールド</td><td>地層コード、層序、名称、層群、層厚、岩種（sed／ign）。</td></tr>
+<tr><td>断層：傾斜／傾斜方位フィールド</td><td>断層面の姿勢（空欄なら傾斜 60°）。</td></tr>
+<tr><td>姿勢点 1・2</td><td>傾斜、傾斜方位（または走向）、地層コード（任意；なければ点の下の地層）、逆転。</td></tr>
+<tr><td>断面線</td><td>線ごとに 1 断面（フィールド <code>name</code>、例：A-A'）。空欄なら走向に直交する断面を 1 本作成。</td></tr>
+<tr><td>断面の垂直誇張</td><td>断面図の垂直誇張。</td></tr>
+<tr><td>セルサイズ／モデル深さ</td><td>0＝自動（図幅幅の 1/40；深さは最低地表から図幅幅の 35%）。小さいほど滑らかですがファイルは大きくなります。</td></tr>
+<tr><td>層厚を境界面の間隔に使う（詳細）</td><td>境界から求めず、<code>thick_m</code> で境界面の間隔を固定します。</td></tr>
+<tr><td>3D CAD 形式</td><td>DXF（polyface mesh、地層ごとのレイヤ）、OBJ + MTL（色付き）、STL（地層ごとのファイル）。</td></tr>
+</table>
+<h3>8.3 出力</h3>
+<table class="grid">
+<tr><th>GeoPackage レイヤ</th><th>内容</th></tr>
+<tr><td>units_3d</td><td>各地層の閉じた 3D 立体（MultiPolygonZ の三角形）と体積</td></tr>
+<tr><td>horizons_3d／faults_3d／terrain_3d</td><td>地層境界面、断層面、地層で色分けした地形面</td></tr>
+<tr><td>section_fences_3d</td><td>断面線上に立てた 3D 断面（QGIS の 3D マップビュー用）</td></tr>
+<tr><td>section_units／section_profile／section_faults／section_frame／section_labels</td><td>地図座標で地質図の下に配置した断面図（x＝距離、y＝標高×垂直誇張）。印刷レイアウトにそのまま使えます</td></tr>
+<tr><td>section_lines／model_info</td><td>地図上の断面線；パラメータ、境界面の値、警告</td></tr>
+</table>
+<p>GeoPackage の横に <code>*.dxf</code>、<code>*.obj</code> + <code>*.mtl</code>、<code>*_unit_*.stl</code>、<code>*_viewer.html</code> を出力します。
+最後はオフラインの 3D ビューア（three.js）で、地層の表示切替、透明度、垂直誇張、東西／南北の切断、断面表示、PNG 保存ができます。
+アドレスに <code>#nopanel</code> を付けるとパネルを隠してスクリーンショットを撮れます。</p>
+
+<h2 id="tips">9. 注意点と制限</h2>
 <ul>
 <li>予測は境界面が平面（または滑らかに変化する面）であることを前提とします。きつい褶曲、層厚変化、不整合には
 追加の観察点か手作業の編集が必要です。</li>

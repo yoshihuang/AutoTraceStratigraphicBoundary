@@ -84,6 +84,7 @@ class AutoTraceStratBoundaryPlugin(object):
 
         add("trace.svg", "act_trace", self.run_trace)
         add("geology.svg", "act_geology", self.run_geology)
+        add("model3d.svg", "act_model3d", self.run_model3d)
         self.menu.addSeparator()
         add("sample.svg", "act_sample", self.download_sample)
         add("help.svg", "act_help", self.show_help)
@@ -179,6 +180,28 @@ class AutoTraceStratBoundaryPlugin(object):
                 e.xMinimum(), e.xMaximum(), e.yMinimum(), e.yMaximum(), dem.crs().authid()
             )
         self._open_algorithm_dialog("%s:buildgeology" % PROVIDER_ID, params)
+
+    def run_model3d(self):
+        params = {}
+        geology = None
+        # prefer a geology produced by the plugin (has a qa field), then a layer named geology
+        for lyr in QgsProject.instance().mapLayers().values():
+            if isinstance(lyr, QgsVectorLayer) and lyr.geometryType() == GEOM_POLYGON and lyr.featureCount() > 0:
+                names = [f.lower() for f in lyr.fields().names()]
+                if "unit_code" in names and "qa" in names:
+                    geology = lyr
+        if geology is None:
+            geology = _find_layer(GEOM_POLYGON, ["geology", "地質"], ("unit_code",))
+        dem = _find_layer("raster", ["DEM", "dtm", "topo"])
+        faults = _find_layer(GEOM_LINE, ["faults", "fault", "斷層", "断层"])
+        bedding = _find_layer(GEOM_POINT, ["bedding"], ("dip", "dip_dir"))
+        bnd = _find_layer(GEOM_POINT, ["Stratigraphic_Boundary"], ("dip", "unit_code_u"))
+        sections = _find_layer(GEOM_LINE, ["section_line", "section", "剖面"])
+        for key, lyr in (("GEOLOGY", geology), ("DEM", dem), ("FAULTS", faults), ("ATTITUDES", bedding),
+                         ("ATTITUDES2", bnd), ("SECTIONS", sections)):
+            if lyr is not None:
+                params[key] = lyr.id()
+        self._open_algorithm_dialog("%s:buildmodel3d" % PROVIDER_ID, params)
 
     def download_sample(self):
         from .sample_data import download_sample_dialog
