@@ -11,10 +11,11 @@ about=For each outcrop point of a stratigraphic boundary (dip, dip direction, up
     Includes a downloadable sample project (oblique-slip fault displacing a plunging fold) and an illustrated guide to the principle and operation.
     User interface and guide: English, 繁體中文, 简体中文, 日本語 (follows the QGIS locale, switchable in the plugin menu).
     Requires only QGIS (GDAL and NumPy shipped with QGIS).
-version=1.4.1
+version=1.4.2
 author=yoshihuang
 email=yoshi.hml@gmail.com
 changelog=
+    1.4.2 Description: links to the YouTube video tutorials (Chinese https://youtu.be/5PLR4HU3O1w, English https://youtu.be/risDZpzG0dE).
     1.4.1 Fix "No transform is available between Geological section (distance, elevation) and EPSG:4326": section layers keep the model CRS; their coordinate values are unchanged (x = distance from 0, y = elevation).
     1.4.0 Sections: each section line in its own GeoPackage layers and its own QGIS project; local section coordinates (x = distance from the section start, 0 at the left; y = elevation x V.E.).
     1.3.2 Sample folder renamed to case (case/case.qgz, case/data.gpkg, case/DEM.tif).
