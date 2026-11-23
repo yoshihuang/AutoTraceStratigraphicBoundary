@@ -8,6 +8,13 @@ DEM using the **structure-contour method**. The lines stop at faults, and the pl
 依**構造等高線原理**，由地層邊界露頭點（傾角、傾向、上下層代號）與 DEM 預判地層邊界線，遇斷層即停止並接於斷層上；
 編修後可與斷層一起產生地質圖。
 
+## Video tutorials / 操作影片
+
+| Language / 語言 | Video / 影片 |
+|---|---|
+| 繁體中文 | [功能介紹與操作說明](https://youtu.be/5PLR4HU3O1w) |
+| English | [Introduction and step-by-step operation](https://youtu.be/risDZpzG0dE) |
+
 | # | Requirement / 需求 | Where |
 |---|---|---|
 | 1 | Points + DEM → lines extended to both sides along dip/dip-direction (temporary layer) | *Trace predicted boundary lines* (`core/tracer.py`) |
