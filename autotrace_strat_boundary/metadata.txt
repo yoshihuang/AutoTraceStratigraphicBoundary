@@ -3,7 +3,7 @@ name=AutoTrace Stratigraphic Boundary
 qgisMinimumVersion=3.22
 qgisMaximumVersion=4.99
 supportsQt6=True
-description=Predicts stratigraphic boundary outcrop lines from dip/dip-direction outcrop points and a DEM (structure-contour method), stops them at faults, builds a geological map from the edited lines, and a 3D geological model with sections. 依構造等高線原理由露頭位態與 DEM 預判地層邊界線並產生地質圖。
+description=Predicts stratigraphic boundary outcrop lines from dip/dip-direction outcrop points and a DEM (structure-contour method), stops them at faults, builds a geological map from the edited lines, and a 3D geological model with sections. 依構造等高線原理由露頭位態與 DEM 預判地層邊界線並產生地質圖。 Video tutorials / 操作影片: 中文 https://youtu.be/5PLR4HU3O1w ; English https://youtu.be/risDZpzG0dE
 about=For each outcrop point of a stratigraphic boundary (dip, dip direction, upper and lower unit codes) the boundary plane is intersected with the DEM, and the outcrop line is followed to both sides of the point.
     Points of the same boundary in the same fault block are joined end to end through an inverse-distance blend of their planes, and lines stop on faults.
     A second tool polygonizes the edited boundary lines with the faults and assigns units from the side of each boundary, producing a geology layer.
